@@ -7,11 +7,12 @@ package Server;
  * @author harish
  *
  */
-public class Treasure extends GameEntity {
+public class Treasures extends GameEntity {
 	
-	public Treasure(String treasureId, GridLocation l){
-		id = treasureId; 
-		position = l;
+	public int treasureCountInLocation;
+	public Treasures(GridLocation l){
+		super("treasure", l);
+		treasureCountInLocation = 1;
 	}
 	
 	/**
@@ -22,6 +23,10 @@ public class Treasure extends GameEntity {
 	@Override
 	public void remove() {	
 		removed = true;
+	}
+	
+	public void addTreasure(){
+		treasureCountInLocation++;
 	}
 
 }

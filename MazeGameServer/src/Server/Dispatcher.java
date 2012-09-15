@@ -3,6 +3,9 @@
  */
 package Server;
 
+import java.io.BufferedOutputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.net.Socket;
 import java.util.HashMap;
 import java.util.Map;
@@ -23,5 +26,12 @@ public class Dispatcher extends Thread {
 	
 	public void run(){
 		
+	}
+
+	public void addPlayer(Socket aPlayerClient, Player p) throws IOException {
+		players.put(aPlayerClient, p);
+		DataOutputStream dataToClient = new DataOutputStream(new BufferedOutputStream(aPlayerClient.getOutputStream()));;
+		dataToClient.writeUTF("You are connected to MazeGameServer");
+		dataToClient.flush();
 	}
 }

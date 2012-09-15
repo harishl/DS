@@ -11,5 +11,11 @@ public abstract class GameEntity {
 	public String id;
 	public GridLocation position;
 	public boolean removed;
+	
+	public GameEntity(String id, GridLocation l){
+		this.id = id;
+		this.position = l;
+		removed = false;
+	}
 	public abstract void remove();
 }

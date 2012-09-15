@@ -10,8 +10,9 @@ package Server;
 public class Player extends GameEntity implements Runnable {
 
 
-	public Player(String playerId) {
-		id = playerId;
+	public Player(String playerId, GridLocation l) {
+		super(playerId, l);
+		
 	}
 	
 	/**
