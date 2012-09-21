@@ -29,4 +29,12 @@ public class Treasures extends GameEntity {
 		treasureCountInLocation++;
 	}
 
+	/*
+	 * @see java.lang.Object#toString()
+	 */
+	@Override
+	public String toString() {
+		return ((Integer)treasureCountInLocation).toString();
+	}
+
 }

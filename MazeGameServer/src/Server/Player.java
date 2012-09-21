@@ -30,5 +30,4 @@ public class Player extends GameEntity implements Runnable {
 		// TODO Auto-generated method stub
 		
 	}
-
 }

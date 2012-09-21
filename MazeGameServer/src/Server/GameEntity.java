@@ -17,5 +17,14 @@ public abstract class GameEntity {
 		this.position = l;
 		removed = false;
 	}
+	
+	/* 
+	 * @see java.lang.Object#toString()
+	 */
+	@Override
+	public String toString() {
+		return id;
+	}
+
 	public abstract void remove();
 }

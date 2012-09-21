@@ -1,9 +1,12 @@
 package Server;
 
 import java.io.IOException;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.SocketTimeoutException;
+import java.net.InetSocketAddress;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
+import java.util.Iterator;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -14,13 +17,14 @@ import java.util.TimerTask;
 public class GameServer {
 
 	// Socket Params
-	private ServerSocket gameServerSocket = null;
-	Dispatcher dispatcher = null;
+	private Selector dispatcher = null;
+	private ServerSocketChannel svrScktChnl;
 	public final int timeBeforeStart;
 	public final int port;
 	private boolean timerStarted;
+	private Timer timer;
 	private boolean gameStarted;
-	
+
 	// Game params
 	public final int gridSize;
 	public int numTreasures;
@@ -37,14 +41,14 @@ public class GameServer {
 
 		this.timerStarted = false;
 		this.gameStarted = false;
-		this.timeBeforeStart = 20000; // 20 * 1000ms;
+		this.timeBeforeStart = 3000; // 20 * 1000ms;
 		this.port = 1234;
-		
+
 		this.playerCounter = 0;
 		this.gridSize = gridSize;
 		this.numTreasures = numTreasures;
-		
-		this.grid = new GameEntity[gridSize][gridSize];		
+
+		this.grid = new GameEntity[gridSize][gridSize];
 		populateTreasures();
 	}
 
@@ -83,8 +87,9 @@ public class GameServer {
 	 */
 	public synchronized boolean move(Player p, Direction nextCell) {
 		boolean moved = false;
-
-		if (vacant(p.position.get(nextCell))) {
+		GridLocation nextLocation = p.position.get(nextCell);
+		if (vacant(nextLocation)
+				|| grid[nextLocation.x][nextLocation.y] instanceof Treasures) {
 			grid[p.position.x][p.position.y] = null;
 
 			switch (nextCell) {
@@ -113,51 +118,86 @@ public class GameServer {
 
 	/**
 	 * Initializes the server and waits for Players to join the game
-	 * 
 	 * @throws IOException
 	 */
 	public void initServer() throws IOException {
+		dispatcher = Selector.open();
+		svrScktChnl = ServerSocketChannel.open();
+		svrScktChnl.socket().bind(new InetSocketAddress(port));
+		svrScktChnl.configureBlocking(false); // makes server to accept without blocking
+		SelectionKey key = svrScktChnl.register(dispatcher, SelectionKey.OP_ACCEPT);
+		System.out.println("SelectionKey: " + key.channel().toString());
+		SocketChannel aPlayerScktChnl = null;
 
-		gameServerSocket = new ServerSocket(port);
-		dispatcher = new Dispatcher();
-		Socket aPlayerClient = null;
-		
 		while (!gameStarted) {
-			System.out.println("Waiting for clients to join");
+			System.out.println("Waiting for players to join");
 
-			try	{
-				aPlayerClient = gameServerSocket.accept();
+			if(dispatcher.selectNow() == 0) continue;
+			Iterator<SelectionKey> i = dispatcher.selectedKeys().iterator();
+			while(i.hasNext()){
+				SelectionKey selKey = (SelectionKey) i.next();
+				i.remove();
+				if(!selKey.isValid()) continue;
+				
+				//has a player attempted to join?
+				if(selKey.isAcceptable()) {
+					aPlayerScktChnl = svrScktChnl.accept();
+					aPlayerScktChnl.configureBlocking(false);
+					aPlayerScktChnl.register(dispatcher, SelectionKey.OP_READ|SelectionKey.OP_WRITE);
+				}
 			}
-			catch (SocketTimeoutException sctTimeOutEx) {
-				System.out.println("No more players can join!");
-				break;
+			
+
+			if (aPlayerScktChnl != null) {
+				playerCounter++;
+				System.out.println("Players joined: " + playerCounter);
+				putPlayerOnGame(aPlayerScktChnl);
 			}
-			System.out.println("Client from " + aPlayerClient.getInetAddress()
-					+ " connected.");
-			putPlayerOnGame(aPlayerClient);
 
-
-			if (!timerStarted) {
+			if (!timerStarted && playerCounter == 1 /*first player has joined*/) {
 				// Executes only once
-				gameServerSocket.setSoTimeout(timeBeforeStart);
+				timer.schedule(new LoopBreakerTask(), timeBeforeStart);
 				timerStarted = true;
 			}
 		}
 	}
+	
+	class LoopBreakerTask extends TimerTask {
+		@Override
+		public void run() {
+			gameStarted = true;
+			System.out.println("No more players can join!");
+		}
+	}
 
-	private void putPlayerOnGame(Socket aPlayerClient) throws IOException {
-		
+	private void putPlayerOnGame(SocketChannel aPlayer) throws IOException {
 		GridLocation l = new GridLocation(gridSize);
 		while (!vacant(l)) {
 			l.pickAnotherLocation();
-		} 
-		Player p = new Player("P"+ ++playerCounter , l);
+		}
+		Player p = new Player("P" + playerCounter, l);
 		grid[l.x][l.y] = p;
-		dispatcher.addPlayer(aPlayerClient, p);
+	}
+
+	private String gridToString() {
+		String gridString = "";
+		for (int i = 0; i < gridSize; i++) {
+			gridString += "\n";
+			for (int j = 0; j < gridSize; j++) {
+				if (grid[i][j] == null) {
+					gridString += "\tX\t";
+				} else {
+					gridString += "\t" + (grid[i][j]).toString() + "\t";
+				}
+			}
+		}
+		return gridString;
 	}
 
 	/**
 	 * @param args
+	 *            : accepts two args, viz. - Number of cells in a row/column of
+	 *            the grid and number of treasures on the grid
 	 */
 	public static void main(String[] args) throws IOException {
 		int gridSize = 0, numTreasures = 0;

@@ -54,7 +54,4 @@ public class GridLocation {
 		
 		return null;
 	}
-	
-
-
 }
