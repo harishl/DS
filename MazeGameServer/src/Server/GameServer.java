@@ -2,6 +2,7 @@ package Server;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
@@ -14,10 +15,10 @@ import java.util.TimerTask;
  * @author harish
  * @author sadesh
  */
-public class GameServer {
+public class GameServer implements Runnable{
 
 	// Socket Params
-	private Selector dispatcher = null;
+	private Selector selector = null;
 	private ServerSocketChannel svrScktChnl;
 	public final int timeBeforeStart;
 	public final int port;
@@ -118,47 +119,57 @@ public class GameServer {
 
 	/**
 	 * Initializes the server and waits for Players to join the game
+	 * 
 	 * @throws IOException
 	 */
-	public void initServer() throws IOException {
-		dispatcher = Selector.open();
-		svrScktChnl = ServerSocketChannel.open();
-		svrScktChnl.socket().bind(new InetSocketAddress(port));
-		svrScktChnl.configureBlocking(false); // makes server to accept without blocking
-		SelectionKey key = svrScktChnl.register(dispatcher, SelectionKey.OP_ACCEPT);
-		System.out.println("SelectionKey: " + key.channel().toString());
-		SocketChannel aPlayerScktChnl = null;
+	@Override
+	public void run() {
+		try {
+			selector = Selector.open();
+			svrScktChnl = ServerSocketChannel.open();
+			svrScktChnl.socket().bind(new InetSocketAddress(port));
+			svrScktChnl.configureBlocking(false); // makes server to accept without blocking
+			SelectionKey key = svrScktChnl.register(selector, SelectionKey.OP_ACCEPT);
+			System.out.println("SelectionKey: " + key.channel().toString());
+			SocketChannel aPlayerScktChnl = null;
 
-		while (!gameStarted) {
-			System.out.println("Waiting for players to join");
+			while (!gameStarted) {
+				System.out.println("Waiting for players to join");
 
-			if(dispatcher.selectNow() == 0) continue;
-			Iterator<SelectionKey> i = dispatcher.selectedKeys().iterator();
-			while(i.hasNext()){
-				SelectionKey selKey = (SelectionKey) i.next();
-				i.remove();
-				if(!selKey.isValid()) continue;
-				
-				//has a player attempted to join?
-				if(selKey.isAcceptable()) {
-					aPlayerScktChnl = svrScktChnl.accept();
-					aPlayerScktChnl.configureBlocking(false);
-					aPlayerScktChnl.register(dispatcher, SelectionKey.OP_READ|SelectionKey.OP_WRITE);
+				if (selector.selectNow() == 0)
+					continue;
+				Iterator<SelectionKey> selKeyIterator = selector
+						.selectedKeys().iterator();
+				while (selKeyIterator.hasNext()) {
+					SelectionKey selKey = (SelectionKey) selKeyIterator.next();
+					selKeyIterator.remove();
+					if (!selKey.isValid())
+						continue;
+
+					// has a player attempted to join?
+					if (selKey.isAcceptable()) {
+						aPlayerScktChnl = svrScktChnl.accept();
+						aPlayerScktChnl.configureBlocking(false);
+						aPlayerScktChnl.register(selector, SelectionKey.OP_READ);
+						playerCounter++;
+						System.out.println("Players joined: " + playerCounter);
+						putPlayerOnGame(aPlayerScktChnl);
+					}
+				}
+
+				if (!timerStarted && playerCounter == 1) {
+					// Executes only once
+					// First player has joined
+					timer.schedule(new LoopBreakerTask(), timeBeforeStart);
+					timerStarted = true;
 				}
 			}
-			
-
-			if (aPlayerScktChnl != null) {
-				playerCounter++;
-				System.out.println("Players joined: " + playerCounter);
-				putPlayerOnGame(aPlayerScktChnl);
-			}
-
-			if (!timerStarted && playerCounter == 1 /*first player has joined*/) {
-				// Executes only once
-				timer.schedule(new LoopBreakerTask(), timeBeforeStart);
-				timerStarted = true;
-			}
+		} 
+		catch (ClosedChannelException e) {
+			System.out.println("An Closed Channel Exception occurred. " + e.getMessage());
+		}
+		catch (IOException e) {
+			System.out.println("An IO Exception occurred. " + e.getMessage());
 		}
 	}
 	
@@ -166,6 +177,14 @@ public class GameServer {
 		@Override
 		public void run() {
 			gameStarted = true;
+			SelectionKey key;
+			try {
+				key = svrScktChnl.register(selector, SelectionKey.OP_WRITE);
+				System.out.println("SelectionKey: " + key.channel().toString());
+			} catch (ClosedChannelException e) {
+				e.printStackTrace();
+			}
+			
 			System.out.println("No more players can join!");
 		}
 	}
@@ -223,7 +242,8 @@ public class GameServer {
 
 		// Here we go!
 		GameServer aGameServer = new GameServer(gridSize, numTreasures);
-		aGameServer.initServer();
+		Thread mazeGame = new Thread(aGameServer);
+		mazeGame.start();
 	}
 
 }
