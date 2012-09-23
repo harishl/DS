@@ -2,12 +2,17 @@ package Server;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -23,8 +28,13 @@ public class GameServer implements Runnable{
 	public final int timeBeforeStart;
 	public final int port;
 	private boolean timerStarted;
-	private Timer timer;
 	private boolean gameStarted;
+	private Timer timer;
+	
+	private ByteBuffer readBuffer;
+	private ByteBuffer writeBuffer;
+	private Map<SocketChannel, Player> players;
+	public List<Player> writeReadyPlayers;
 
 	// Game params
 	public final int gridSize;
@@ -39,10 +49,10 @@ public class GameServer implements Runnable{
 	public GameEntity[][] grid;
 
 	public GameServer(int gridSize, int numTreasures) {
-
+		timer = new Timer();
 		this.timerStarted = false;
 		this.gameStarted = false;
-		this.timeBeforeStart = 3000; // 20 * 1000ms;
+		this.timeBeforeStart = 5000; // 20 * 1000ms;
 		this.port = 1234;
 
 		this.playerCounter = 0;
@@ -53,6 +63,9 @@ public class GameServer implements Runnable{
 		populateTreasures();
 	}
 
+	/**
+	 * Populate treasures in random locations on the grid
+	 */
 	private void populateTreasures() {
 		for (int i = 0; i < numTreasures; i++) {
 			GridLocation l = new GridLocation(gridSize);
@@ -71,50 +84,8 @@ public class GameServer implements Runnable{
 	 *            : location which is to be checked
 	 * @return boolean indicating whether l is vacant in the grid or not
 	 */
-	private boolean vacant(GridLocation l) {
+	public synchronized boolean vacant(GridLocation l) {
 		return (grid[l.x][l.y] == null);
-	}
-
-	/**
-	 * This method is called by the Player threads to move to the next cell in
-	 * any direction. This is synchronized to avoid inconsistent game states due
-	 * to parallel updates by two or more Player threads.
-	 * 
-	 * @param p
-	 *            : Player who wants to move
-	 * @param nextCell
-	 *            : direction in which the Player wants to move
-	 * @return boolean indicating whether the move was successful or not.
-	 */
-	public synchronized boolean move(Player p, Direction nextCell) {
-		boolean moved = false;
-		GridLocation nextLocation = p.position.get(nextCell);
-		if (vacant(nextLocation)
-				|| grid[nextLocation.x][nextLocation.y] instanceof Treasures) {
-			grid[p.position.x][p.position.y] = null;
-
-			switch (nextCell) {
-			case left:
-				p.position.x = p.position.x - 1;
-				break;
-
-			case right:
-				p.position.x = p.position.x + 1;
-				break;
-
-			case up:
-				p.position.y = p.position.y + 1;
-				break;
-
-			case down:
-				p.position.y = p.position.y - 1;
-				break;
-			}
-
-			grid[p.position.x][p.position.y] = p;
-			moved = true;
-		}
-		return moved;
 	}
 
 	/**
@@ -125,21 +96,35 @@ public class GameServer implements Runnable{
 	@Override
 	public void run() {
 		try {
-			selector = Selector.open();
+			selector = Selector.open(); // or SelectorProvider.provider.open() ??
 			svrScktChnl = ServerSocketChannel.open();
 			svrScktChnl.socket().bind(new InetSocketAddress(port));
 			svrScktChnl.configureBlocking(false); // makes server to accept without blocking
 			SelectionKey key = svrScktChnl.register(selector, SelectionKey.OP_ACCEPT);
 			System.out.println("SelectionKey: " + key.channel().toString());
-			SocketChannel aPlayerScktChnl = null;
-
-			while (!gameStarted) {
-				System.out.println("Waiting for players to join");
-
+			
+			players = new HashMap<SocketChannel, Player>();
+			writeReadyPlayers = new ArrayList<Player>();
+			readBuffer = ByteBuffer.allocate(8192);
+			writeBuffer = ByteBuffer.allocate(16384);
+			System.out.println("Game ready. Players can join");
+			while (true) {
+				synchronized (writeReadyPlayers) {
+					Iterator<Player> playerIt = this.writeReadyPlayers.iterator();
+					while (playerIt.hasNext()) {
+						Player aWriteReadyPlayer = (Player) playerIt.next();
+						SocketChannel scktChnl = getscktChannel(aWriteReadyPlayer);
+						SelectionKey selKey = scktChnl.keyFor(selector);
+						selKey.interestOps(SelectionKey.OP_WRITE);
+					}
+					writeReadyPlayers.clear();
+				}
+	
 				if (selector.selectNow() == 0)
 					continue;
-				Iterator<SelectionKey> selKeyIterator = selector
-						.selectedKeys().iterator();
+				
+				Iterator<SelectionKey> selKeyIterator = selector.selectedKeys().iterator();
+				
 				while (selKeyIterator.hasNext()) {
 					SelectionKey selKey = (SelectionKey) selKeyIterator.next();
 					selKeyIterator.remove();
@@ -147,13 +132,14 @@ public class GameServer implements Runnable{
 						continue;
 
 					// has a player attempted to join?
-					if (selKey.isAcceptable()) {
-						aPlayerScktChnl = svrScktChnl.accept();
-						aPlayerScktChnl.configureBlocking(false);
-						aPlayerScktChnl.register(selector, SelectionKey.OP_READ);
-						playerCounter++;
-						System.out.println("Players joined: " + playerCounter);
-						putPlayerOnGame(aPlayerScktChnl);
+					if (selKey.isAcceptable() && !gameStarted) {
+						acceptPlayer();
+					}
+					else if (selKey.isReadable()) {
+						readDataFromPlayer(selKey);
+					}
+					else if (selKey.isWritable()) {
+						writeDataToPlayer(selKey);
 					}
 				}
 
@@ -164,29 +150,72 @@ public class GameServer implements Runnable{
 					timerStarted = true;
 				}
 			}
-		} 
+		}
+		catch (NullPointerException e) {
+			System.out.println("NullPointerException occurred in GameServer run()\n" + e.getMessage());
+		}
 		catch (ClosedChannelException e) {
-			System.out.println("An Closed Channel Exception occurred. " + e.getMessage());
+			System.out.println("ClosedChannelException occurred in GameServer run()\n" + e.getMessage());
 		}
 		catch (IOException e) {
-			System.out.println("An IO Exception occurred. " + e.getMessage());
+			System.out.println("IOException occurred in GameServer run()\n" + e.getMessage());
 		}
 	}
+
+	private void acceptPlayer() throws IOException {
+		SocketChannel aPlayerScktChnl = svrScktChnl.accept();
+		aPlayerScktChnl.configureBlocking(false);
+		playerCounter++;
+		System.out.println("Players joined: " + playerCounter);
+		putPlayerOnGame(aPlayerScktChnl);
+		writeWelcomeMsgToPlayer(aPlayerScktChnl);
+	}
 	
-	class LoopBreakerTask extends TimerTask {
-		@Override
-		public void run() {
-			gameStarted = true;
-			SelectionKey key;
-			try {
-				key = svrScktChnl.register(selector, SelectionKey.OP_WRITE);
-				System.out.println("SelectionKey: " + key.channel().toString());
-			} catch (ClosedChannelException e) {
-				e.printStackTrace();
-			}
-			
-			System.out.println("No more players can join!");
+	private void readDataFromPlayer(SelectionKey key) throws IOException {
+		SocketChannel scktChannel = (SocketChannel)key.channel();
+		int dataSize;
+		try{
+		dataSize = scktChannel.read(readBuffer);
+		} catch (IOException e) {
+			key.cancel();
+			scktChannel.close();
+			return;
 		}
+		System.out.println(new String(readBuffer.array()));
+		if(dataSize == -1) {
+			// The player client has shut it's socket down. 
+			key.channel().close();
+			key.cancel();
+			return;
+		}
+		Player p = players.get(scktChannel);
+		
+		synchronized (p.requestQueue) {
+			p.requestQueue.add(readBuffer.getChar());
+			p.requestQueue.notify();
+		}
+		
+		readBuffer.clear();
+	}
+	
+	private void writeDataToPlayer(SelectionKey key) throws IOException {
+		SocketChannel scktChannel = (SocketChannel) key.channel(); 
+		Player playerToWriteTo = players.get(scktChannel);
+		String responseMsg = prepareResponseMsg(playerToWriteTo.msgToPlayerClient);
+		writeBuffer = ByteBuffer.wrap(responseMsg.getBytes());
+		scktChannel.write(writeBuffer);
+		key.interestOps(SelectionKey.OP_READ);
+		writeBuffer.clear();
+	}
+	
+	private void writeWelcomeMsgToPlayer(SocketChannel scktChannel) throws IOException {
+		String welcomeMsg = "Join game successful";
+		writeBuffer = ByteBuffer.wrap(welcomeMsg.getBytes());
+		scktChannel.register(selector, SelectionKey.OP_WRITE);
+		scktChannel.write(writeBuffer);
+		writeBuffer.clear();
+		SelectionKey selKey = scktChannel.keyFor(selector);
+		selKey.interestOps(SelectionKey.OP_READ);
 	}
 
 	private void putPlayerOnGame(SocketChannel aPlayer) throws IOException {
@@ -194,56 +223,44 @@ public class GameServer implements Runnable{
 		while (!vacant(l)) {
 			l.pickAnotherLocation();
 		}
-		Player p = new Player("P" + playerCounter, l);
+		Player p = new Player("P" + playerCounter, l, this);
 		grid[l.x][l.y] = p;
+		players.put(aPlayer, p);
 	}
 
-	private String gridToString() {
-		String gridString = "";
+	private String prepareResponseMsg(String s) {
+		String response = "";
 		for (int i = 0; i < gridSize; i++) {
-			gridString += "\n";
+			response += "\n";
 			for (int j = 0; j < gridSize; j++) {
 				if (grid[i][j] == null) {
-					gridString += "\tX\t";
+					response += "\tX\t";
 				} else {
-					gridString += "\t" + (grid[i][j]).toString() + "\t";
+					response += "\t" + (grid[i][j]).toString() + "\t";
 				}
 			}
 		}
-		return gridString;
+		response += "\n\n\n" + s.toUpperCase() + "\n";
+		return response;
 	}
-
-	/**
-	 * @param args
-	 *            : accepts two args, viz. - Number of cells in a row/column of
-	 *            the grid and number of treasures on the grid
-	 */
-	public static void main(String[] args) throws IOException {
-		int gridSize = 0, numTreasures = 0;
-
-		// input validations
-		if (args.length <= 0) {
-			System.out.println("Missing required command-line arguments");
-			System.out.println("- Size N for N*N grid");
-			System.out.println("- Number of treasures");
-			System.exit(0); // exit
+	
+	private SocketChannel getscktChannel(Player aWriteReadyPlayer) {
+		for(SocketChannel s : players.keySet()) {
+			if(players.get(s) == aWriteReadyPlayer) return s;
 		}
-		try {
-			gridSize = Integer.parseInt(args[0]);
-			numTreasures = Integer.parseInt(args[1]);
-			if (gridSize <= 1 || numTreasures <= 0)
-				throw new IllegalArgumentException();
-		} catch (IllegalArgumentException e) {
-			System.out.println("Invalid command-line arguments");
-			System.out.println("- Size N for N*N grid must be an integer > 1");
-			System.out.println("- Number of treasures must be an integer > 0");
-			System.exit(0); // exit
+		return null;
+	}
+	
+	class LoopBreakerTask extends TimerTask {
+		@Override
+		public void run() {
+			gameStarted = true;
+			// register all joined players for read
+			for (SocketChannel s : players.keySet()) {
+				s.keyFor(selector).interestOps(SelectionKey.OP_READ);
+			}
+			System.out.println("No more players can join!");
 		}
-
-		// Here we go!
-		GameServer aGameServer = new GameServer(gridSize, numTreasures);
-		Thread mazeGame = new Thread(aGameServer);
-		mazeGame.start();
 	}
 
 }
