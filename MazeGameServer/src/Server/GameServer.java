@@ -9,6 +9,7 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -104,7 +105,7 @@ public class GameServer implements Runnable{
 			System.out.println("SelectionKey: " + key.channel().toString());
 			
 			players = new HashMap<SocketChannel, Player>();
-			writeReadyPlayers = new ArrayList<Player>();
+			writeReadyPlayers = Collections.synchronizedList(new ArrayList<Player>());
 			readBuffer = ByteBuffer.allocate(8192);
 			writeBuffer = ByteBuffer.allocate(16384);
 			System.out.println("Game ready. Players can join");
@@ -199,6 +200,7 @@ public class GameServer implements Runnable{
 	}
 	
 	private void writeDataToPlayer(SelectionKey key) throws IOException {
+		System.out.println("in server writeDataToPlayer");
 		SocketChannel scktChannel = (SocketChannel) key.channel(); 
 		Player playerToWriteTo = players.get(scktChannel);
 		String responseMsg = prepareResponseMsg(playerToWriteTo.msgToPlayerClient);
@@ -210,6 +212,7 @@ public class GameServer implements Runnable{
 	
 	private void writeWelcomeMsgToPlayer(SocketChannel scktChannel) throws IOException {
 		String welcomeMsg = "Join game successful";
+		welcomeMsg = prepareResponseMsg(welcomeMsg);
 		writeBuffer = ByteBuffer.wrap(welcomeMsg.getBytes());
 		scktChannel.register(selector, SelectionKey.OP_WRITE);
 		scktChannel.write(writeBuffer);
@@ -257,7 +260,10 @@ public class GameServer implements Runnable{
 			gameStarted = true;
 			// register all joined players for read
 			for (SocketChannel s : players.keySet()) {
+				// set interest as read
 				s.keyFor(selector).interestOps(SelectionKey.OP_READ);
+				// start the player thread
+				new Thread(players.get(s)).start(); 
 			}
 			System.out.println("No more players can join!");
 		}

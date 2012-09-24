@@ -1,5 +1,6 @@
 package Server;
 
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -24,7 +25,7 @@ public class Player extends GameEntity implements Runnable {
 		super(playerId, l);
 		gameServer = s;
 		numCollectedTreasures = 0;
-		requestQueue = new LinkedList<Character>();
+		requestQueue = Collections.synchronizedList(new LinkedList<Character>());
 	}
 	
 	/**

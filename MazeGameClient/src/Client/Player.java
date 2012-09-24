@@ -62,8 +62,8 @@ public class Player {
 					writeBuffer = ByteBuffer.wrap(userInputs.remove(0).toString().getBytes());
 					SelectionKey key = socketChannel.keyFor(selector);
 					key.interestOps(SelectionKey.OP_WRITE);
+				
 				}
-	
 				if (selector.selectNow() == 0)
 					continue;
 				
@@ -96,12 +96,14 @@ public class Player {
 	}
 
 	private void writeDataToServer(SelectionKey key) throws IOException {
+		System.out.println("in writeDataToServer");
 		socketChannel.write(writeBuffer);
 		key.interestOps(SelectionKey.OP_READ);
 		writeBuffer.clear();
 	}
 
 	private void readDataFromServer(SelectionKey key) throws IOException {
+		System.out.println("in readDataFromServer");
 		try{
 			socketChannel.read(readBuffer);
 		} catch (IOException e) {
@@ -110,7 +112,6 @@ public class Player {
 			return;
 		}
 		
-		Runtime.getRuntime().exec("clear");
 		System.out.println(new String(readBuffer.array()));
 		readBuffer.clear();
 	}
