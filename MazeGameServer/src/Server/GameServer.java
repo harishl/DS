@@ -192,7 +192,7 @@ public class GameServer implements Runnable{
 		Player p = players.get(scktChannel);
 		
 		synchronized (p.requestQueue) {
-			p.requestQueue.add(readBuffer.getChar());
+			p.requestQueue.add((char)readBuffer.array()[0]);
 			p.requestQueue.notify();
 		}
 		
@@ -237,9 +237,9 @@ public class GameServer implements Runnable{
 			response += "\n";
 			for (int j = 0; j < gridSize; j++) {
 				if (grid[i][j] == null) {
-					response += "\tX\t";
+					response += "\tX";
 				} else {
-					response += "\t" + (grid[i][j]).toString() + "\t";
+					response += "\t" + (grid[i][j]).toString();
 				}
 			}
 		}

@@ -27,29 +27,39 @@ public class GridLocation {
 		y = randomNoGenerator.nextInt(gridRowColSize);
 	}
 	
+	public void moveTo(GridLocation l) {
+		x = l.x;
+		y = l.y;
+	}
+	
 	public GridLocation get(Direction cell){
 		switch(cell){
-		case left:
+		case up:
 			if(this.x - 1 >= 0){
 				return new GridLocation(this.x - 1 , this.y);
 			}
 			break;
 			
-		case right:
+		case down:
 			if(this.x + 1 < gridRowColSize){
 				return new GridLocation(this.x + 1 , this.y);
 			}
 			break;
 			
-		case up:
+		case right:
 			if(this.y + 1 < gridRowColSize){
 				return new GridLocation(this.x, this.y + 1);
 			}
+			break;
 			
-		case down:
+		case left:
 			if(this.y - 1 >= 0){
 				return new GridLocation(this.x, this.y - 1);
 			}
+			break;
+			
+		case invalid:
+			return new GridLocation(this.x, this.y);
 		}
 		
 		return null;

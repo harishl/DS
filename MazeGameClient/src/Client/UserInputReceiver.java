@@ -23,7 +23,7 @@ public class UserInputReceiver implements Runnable {
 		BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 		char input;
 		while (true) {
-			System.out.println("Up = w | down = s | left = a | right = d");
+			System.out.println("up = w | down = s | left = a | right = d");
 			try {
 				input = (char) br.read();
 				if (input == 'w' || input == 'a' || input == 's' || input == 'd')

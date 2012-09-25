@@ -47,6 +47,9 @@ public class Player {
 		socketChannel.connect(new InetSocketAddress(serverAddr, serverPort));
 		SelectionKey key = socketChannel.register(selector, SelectionKey.OP_CONNECT | SelectionKey.OP_READ);
 		socketChannel.finishConnect();
+		if (key.isReadable()) {
+			readDataFromServer(key);
+		}
 		key.interestOps(SelectionKey.OP_READ);
 	}
 

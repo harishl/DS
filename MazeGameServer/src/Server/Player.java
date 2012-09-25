@@ -42,6 +42,7 @@ public class Player extends GameEntity implements Runnable {
 	public void run() {
 		while (true) {
 			synchronized (requestQueue) {
+				System.out.println("this will print infinitely");
 				while (requestQueue.isEmpty()) {
 					try {
 						requestQueue.wait();
@@ -51,6 +52,7 @@ public class Player extends GameEntity implements Runnable {
 					}
 				} // end of while (requestQueue.isEmpty())
 				
+				System.out.println("this will print whenever we have element in the requestQueue");
 				char moveDirChar = requestQueue.remove(0);
 				if(Direction.getDirection(moveDirChar) != Direction.invalid) {
 					interestToWrite = move(Direction.getDirection(moveDirChar));
@@ -80,7 +82,7 @@ public class Player extends GameEntity implements Runnable {
 			if (gameServer.vacant(nextLocation) 
 					|| gameServer.grid[nextLocation.x][nextLocation.y] instanceof Treasures) {
 				gameServer.grid[position.x][position.y] = null;
-				position = nextLocation;
+				position.moveTo(nextLocation);
 				if (gameServer.grid[position.x][position.y] instanceof Treasures) {
 					numCollectedTreasures += ((Treasures)gameServer.grid[position.x][position.y]).treasureCountInLocation;
 				}
