@@ -53,7 +53,7 @@ public class GameServer implements Runnable{
 		timer = new Timer();
 		this.timerStarted = false;
 		this.gameStarted = false;
-		this.timeBeforeStart = 5000; // 20 * 1000ms;
+		this.timeBeforeStart = 10000; // 20 * 1000ms;
 		this.port = 1234;
 
 		this.playerCounter = 0;
@@ -107,9 +107,9 @@ public class GameServer implements Runnable{
 			players = new HashMap<SocketChannel, Player>();
 			writeReadyPlayers = Collections.synchronizedList(new ArrayList<Player>());
 			readBuffer = ByteBuffer.allocate(8192);
-			writeBuffer = ByteBuffer.allocate(16384);
+			writeBuffer = ByteBuffer.allocate(8192);
 			System.out.println("Game ready. Players can join");
-			while (true) {
+			while (numTreasures >= 0) {
 				synchronized (writeReadyPlayers) {
 					Iterator<Player> playerIt = this.writeReadyPlayers.iterator();
 					while (playerIt.hasNext()) {
@@ -150,7 +150,11 @@ public class GameServer implements Runnable{
 					timer.schedule(new LoopBreakerTask(), timeBeforeStart);
 					timerStarted = true;
 				}
+				if (numTreasures == 0) break;
 			}
+			
+			finishGame();
+
 		}
 		catch (NullPointerException e) {
 			System.out.println("NullPointerException occurred in GameServer run()\n" + e.getMessage());
@@ -163,6 +167,30 @@ public class GameServer implements Runnable{
 		}
 	}
 
+	private void finishGame() throws IOException{
+		Player winner = null;
+		int maxTreasures = 0;
+		for (SocketChannel s : players.keySet()) {
+			if (players.get(s).numCollectedTreasures > maxTreasures) {
+				winner = players.get(s);
+				maxTreasures = winner.numCollectedTreasures;
+			}
+		}
+		
+		for (SocketChannel s : players.keySet()) {
+			writeBuffer.clear();
+			SelectionKey key = s.keyFor(selector);
+			key.interestOps(SelectionKey.OP_WRITE);
+			String goodByeMsg = "Player " + winner.id + " has won the game. The game has ended.";
+			goodByeMsg = prepareResponseMsg(goodByeMsg);
+			writeBuffer = ByteBuffer.wrap(goodByeMsg.getBytes());
+			s.write(writeBuffer);
+			key.cancel();
+			s.close();
+		}
+		selector.close();
+	}
+
 	private void acceptPlayer() throws IOException {
 		SocketChannel aPlayerScktChnl = svrScktChnl.accept();
 		aPlayerScktChnl.configureBlocking(false);
@@ -173,6 +201,7 @@ public class GameServer implements Runnable{
 	}
 	
 	private void readDataFromPlayer(SelectionKey key) throws IOException {
+		readBuffer.clear();
 		SocketChannel scktChannel = (SocketChannel)key.channel();
 		int dataSize;
 		try{
@@ -195,28 +224,25 @@ public class GameServer implements Runnable{
 			p.requestQueue.add((char)readBuffer.array()[0]);
 			p.requestQueue.notify();
 		}
-		
-		readBuffer.clear();
 	}
 	
 	private void writeDataToPlayer(SelectionKey key) throws IOException {
-		System.out.println("in server writeDataToPlayer");
+		writeBuffer.clear();
 		SocketChannel scktChannel = (SocketChannel) key.channel(); 
 		Player playerToWriteTo = players.get(scktChannel);
 		String responseMsg = prepareResponseMsg(playerToWriteTo.msgToPlayerClient);
 		writeBuffer = ByteBuffer.wrap(responseMsg.getBytes());
 		scktChannel.write(writeBuffer);
 		key.interestOps(SelectionKey.OP_READ);
-		writeBuffer.clear();
 	}
 	
 	private void writeWelcomeMsgToPlayer(SocketChannel scktChannel) throws IOException {
+		writeBuffer.clear();
 		String welcomeMsg = "Join game successful";
 		welcomeMsg = prepareResponseMsg(welcomeMsg);
 		writeBuffer = ByteBuffer.wrap(welcomeMsg.getBytes());
 		scktChannel.register(selector, SelectionKey.OP_WRITE);
 		scktChannel.write(writeBuffer);
-		writeBuffer.clear();
 		SelectionKey selKey = scktChannel.keyFor(selector);
 		selKey.interestOps(SelectionKey.OP_READ);
 	}

@@ -24,14 +24,17 @@ public class Player {
 	public final int serverPort;
 	private Selector selector = null;
 	SocketChannel socketChannel;
+	public boolean isGameOver;
 	
 	public List<Character> userInputs;
 	private ByteBuffer readBuffer;
 	private ByteBuffer writeBuffer;
+	Thread inputRcvrThread;
 	
 	public Player() {
 		serverAddr = "localhost";
 		serverPort = 1234;
+		
 		try {
 			selector = Selector.open();
 		} catch (ClosedChannelException e) {
@@ -55,17 +58,19 @@ public class Player {
 
 	public void go() {
 		userInputs = Collections.synchronizedList(new ArrayList<Character>());
-		Thread inputRcvrThread = new Thread(new UserInputReceiver(this));
+		inputRcvrThread = new Thread(new UserInputReceiver(this));
 		inputRcvrThread.start(); 
+		isGameOver = false;
 		readBuffer = ByteBuffer.allocate(8192);
-		writeBuffer = ByteBuffer.allocate(16384);
+		writeBuffer = ByteBuffer.allocate(8192);
 		try {
 			while (true) {
 				if(userInputs.size() > 0) { 
+					writeBuffer = ByteBuffer.allocate(8192);
+					writeBuffer.clear();
 					writeBuffer = ByteBuffer.wrap(userInputs.remove(0).toString().getBytes());
 					SelectionKey key = socketChannel.keyFor(selector);
 					key.interestOps(SelectionKey.OP_WRITE);
-				
 				}
 				if (selector.selectNow() == 0)
 					continue;
@@ -86,9 +91,11 @@ public class Player {
 					}
 				}
 			}
+			
+			finishPlaying();
 		}
 		catch (NullPointerException e) {
-			System.out.println("NullPointerException accurred in GameServer run()\n" + e.getMessage());
+			System.out.println("NullPointerException occurred in GameServer run()\n" + e.getMessage());
 		}
 		catch (ClosedChannelException e) {
 			System.out.println("ClosedChannelException occurred in GameServer run()\n" + e.getMessage());
@@ -98,25 +105,33 @@ public class Player {
 		}
 	}
 
+	private void finishPlaying() throws IOException{
+		socketChannel.keyFor(selector).cancel();
+		socketChannel.close();
+		isGameOver = true;
+	}
+
 	private void writeDataToServer(SelectionKey key) throws IOException {
-		System.out.println("in writeDataToServer");
 		socketChannel.write(writeBuffer);
 		key.interestOps(SelectionKey.OP_READ);
-		writeBuffer.clear();
 	}
 
 	private void readDataFromServer(SelectionKey key) throws IOException {
-		System.out.println("in readDataFromServer");
+		readBuffer = ByteBuffer.allocate(8192);
+		readBuffer.clear();
+		int readLen;
 		try{
-			socketChannel.read(readBuffer);
+			readLen = socketChannel.read(readBuffer);
+		    if (readLen == -1) {
+		    	throw new IOException();
+		    }
 		} catch (IOException e) {
-			key.cancel();
 			socketChannel.close();
+			key.cancel();
 			return;
 		}
 		
 		System.out.println(new String(readBuffer.array()));
-		readBuffer.clear();
 	}
 
 }
