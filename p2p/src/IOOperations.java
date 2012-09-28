@@ -43,22 +43,36 @@ public class IOOperations {
 	}
 	public Object streamRead()
 	{Object temp=null;
-		try {
+	if(null!=bfWrite)
+	{	
+	try {
 				temp=bfRead.readObject();
 		} catch (IOException e) {
 			System.out.println("Socket"+socket.getInetAddress()+" error getting an input stream");
 		} catch (ClassNotFoundException e) {
 			System.out.println("Class Not Found"+e.getMessage());
 		}
+	}
+	else
+	{
+		temp=readMSg();
+	}
 		return temp;
 	}
 	public void streamWrite(Object s)
 	{
+		if(null!=bfWrite)
+		{
 		try {
 			bfWrite.writeObject(s);
 			bfWrite.flush();
 		} catch (IOException e) {
 			System.out.println("Socket "+socket.getInetAddress()+"error getting an output stream");
+		}
+		}
+		else
+		{
+			displayMsg(s.toString());
 		}
 	}
 	public void displayMsg(String msg)
