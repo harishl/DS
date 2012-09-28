@@ -88,6 +88,10 @@ public class Player extends GameEntity implements Runnable {
 				gameServer.grid[position.x][position.y] = this;
 				moved = true;
 			}
+			else if (nextCellDir == Direction.noMove) {
+				// we must give an update to the client if noMove was requested
+				moved = true;
+			}
 		}
 		return moved;
 	}

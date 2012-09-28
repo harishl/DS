@@ -24,7 +24,8 @@ public class Player {
 	public final int serverPort;
 	private Selector selector = null;
 	SocketChannel socketChannel;
-	public boolean isGameOver;
+	public boolean gameOn;
+	public boolean canMove;
 	
 	public List<Character> userInputs;
 	private ByteBuffer readBuffer;
@@ -58,13 +59,15 @@ public class Player {
 
 	public void go() {
 		userInputs = Collections.synchronizedList(new ArrayList<Character>());
+		gameOn = true;
+		canMove = false;
 		inputRcvrThread = new Thread(new UserInputReceiver(this));
-		inputRcvrThread.start(); 
-		isGameOver = false;
+		inputRcvrThread.start();
+		
 		readBuffer = ByteBuffer.allocate(8192);
 		writeBuffer = ByteBuffer.allocate(8192);
 		try {
-			while (true) {
+			while (gameOn) {
 				if(userInputs.size() > 0) { 
 					writeBuffer = ByteBuffer.allocate(8192);
 					writeBuffer.clear();
@@ -95,20 +98,26 @@ public class Player {
 			finishPlaying();
 		}
 		catch (NullPointerException e) {
-			System.out.println("NullPointerException occurred in GameServer run()\n" + e.getMessage());
+			System.out.println("NullPointerException occurred in GameServer run()\n");
+			e.printStackTrace();
+			System.exit(0);
 		}
 		catch (ClosedChannelException e) {
-			System.out.println("ClosedChannelException occurred in GameServer run()\n" + e.getMessage());
+			System.out.println("ClosedChannelException occurred in GameServer run()\n");
+			e.printStackTrace();
+			System.exit(0);
 		}
 		catch (IOException e) {
-			System.out.println("IOException occurred in GameServer run()\n" + e.getMessage());
+			System.out.println("IOException occurred in GameServer run()\n");
+			e.printStackTrace();
+			System.exit(0);
 		}
 	}
 
 	private void finishPlaying() throws IOException{
 		socketChannel.keyFor(selector).cancel();
 		socketChannel.close();
-		isGameOver = true;
+		System.exit(0);
 	}
 
 	private void writeDataToServer(SelectionKey key) throws IOException {
@@ -131,7 +140,21 @@ public class Player {
 			return;
 		}
 		
-		System.out.println(new String(readBuffer.array()));
+		String dataFromServer = new String(readBuffer.array());
+		System.out.println(dataFromServer);
+		if(dataFromServer.contains("START MOVING")) {
+			userInputs.clear();
+			canMove = true;
+			System.out.println("Up = w | Down = s | Left = a | Right = d | NoMove = x");
+		}
+		if(dataFromServer.contains("ENDED")) {
+			gameOn = false;
+			canMove = false;
+		}
+		if(dataFromServer.contains("TREASURE")) {
+			System.out.println("Up = w | Down = s | Left = a | Right = d | NoMove = x");
+		}
+		
 	}
 
 }

@@ -157,13 +157,16 @@ public class GameServer implements Runnable{
 
 		}
 		catch (NullPointerException e) {
-			System.out.println("NullPointerException occurred in GameServer run()\n" + e.getMessage());
+			System.out.println("NullPointerException occurred in GameServer run()");
+			e.printStackTrace();
 		}
 		catch (ClosedChannelException e) {
-			System.out.println("ClosedChannelException occurred in GameServer run()\n" + e.getMessage());
+			System.out.println("ClosedChannelException occurred in GameServer run()");
+			e.printStackTrace();
 		}
 		catch (IOException e) {
-			System.out.println("IOException occurred in GameServer run()\n" + e.getMessage());
+			System.out.println("IOException occurred in GameServer run()");
+			e.printStackTrace();
 		}
 	}
 
@@ -189,6 +192,9 @@ public class GameServer implements Runnable{
 			s.close();
 		}
 		selector.close();
+		
+		//Exit the program
+		System.exit(0);
 	}
 
 	private void acceptPlayer() throws IOException {
@@ -238,9 +244,11 @@ public class GameServer implements Runnable{
 	
 	private void writeWelcomeMsgToPlayer(SocketChannel scktChannel) throws IOException {
 		writeBuffer.clear();
-		String welcomeMsg = "Join game successful";
-		welcomeMsg = prepareResponseMsg(welcomeMsg);
-		writeBuffer = ByteBuffer.wrap(welcomeMsg.getBytes());
+		String msg = "You've joined the game. \nYou are Player " 
+				+ players.get(scktChannel).id 
+				+ "\nPlease wait for start signal.";
+		msg = prepareResponseMsg(msg);
+		writeBuffer = ByteBuffer.wrap(msg.getBytes());
 		scktChannel.register(selector, SelectionKey.OP_WRITE);
 		scktChannel.write(writeBuffer);
 		SelectionKey selKey = scktChannel.keyFor(selector);
@@ -286,10 +294,14 @@ public class GameServer implements Runnable{
 			gameStarted = true;
 			// register all joined players for read
 			for (SocketChannel s : players.keySet()) {
+
 				// set interest as read
 				s.keyFor(selector).interestOps(SelectionKey.OP_READ);
 				// start the player thread
-				new Thread(players.get(s)).start(); 
+				Player p = players.get(s);
+				new Thread(p).start(); 
+				p.msgToPlayerClient = "start moving";
+				writeReadyPlayers.add(p);
 			}
 			System.out.println("No more players can join!");
 		}
