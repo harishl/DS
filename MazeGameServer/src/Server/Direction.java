@@ -12,6 +12,7 @@ public enum Direction {
 	right,
 	up,
 	down,
+	noMove,
 	invalid;
 	
 	public static Direction getDirection(char c) {
@@ -24,6 +25,8 @@ public enum Direction {
 			return Direction.left;
 		case 'd':
 			return Direction.right;
+		case 'x':
+			return Direction.noMove;	
 		default: 
 			return Direction.invalid;
 		}

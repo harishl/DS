@@ -21,15 +21,18 @@ public class UserInputReceiver implements Runnable {
 	@Override
 	public void run() {
 		BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-		char input;
+		char input = 'm';
 		try {
-			System.out.println("Up = w | Down = s | Left = a | Right = d");
-			while (!player.isGameOver) {
+			while (!player.canMove) {
 				input = (char) br.read();
-				if (input == 'w' || input == 'a' || input == 's' || input == 'd') {
+			}
+			
+			while (player.canMove) {
+				
+				if (input == 'w' || input == 'a' || input == 's' || input == 'd' || input == 'x') {
 					player.userInputs.add((char) input);
-					System.out.println("Up = w | Down = s | Left = a | Right = d");
 				}
+				input = (char) br.read();
 			}
 
 		} catch (IOException e) {

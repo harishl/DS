@@ -58,6 +58,9 @@ public class GridLocation {
 			}
 			break;
 			
+		case noMove:
+			return new GridLocation(this.x, this.y);
+			
 		case invalid:
 			return new GridLocation(this.x, this.y);
 		}
