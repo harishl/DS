@@ -27,26 +27,12 @@ public class Peer extends Thread {
 
 	public void run() {
 		boolean flag = true;
-		boolean timeflag = true;
-		long time = 1;
 		ps.initServer();
 		while (flag) {
 			try {
 				ps.setPeer(ps.getSs().accept());
 				ps.ss.setSoTimeout(PeerConstants.timedelay);
-				if (timeflag) {
-					time = System.currentTimeMillis() + PeerConstants.timedelay;
-					timeflag = false;
-				}
-				if (time < System.currentTimeMillis()) {
-					flag = false;
-					io = new IOOperations(ps.getPeer());
-					io.initWrite();
-					io.streamWrite("Time over No more player can join.Closing your connection");
-					ps.getPeer().close();
-				} else {
-					gs.putPlayerOnGame(ps.getPeer());
-				}
+				gs.putPlayerOnGame(ps.getPeer());
 
 			} 
 			catch (SocketTimeoutException e) {
