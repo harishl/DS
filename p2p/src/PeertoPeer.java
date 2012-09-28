@@ -37,7 +37,7 @@ public class PeertoPeer implements Cloneable, Runnable {
 
 		if (args.length == 2) {
 			PeertoPeer peer=new PeertoPeer();
-			peer.startServerSocket(args);
+			//peer.startServerSocket(args);
 		} else if(args.length==1){
 			PeertoPeer peer=new PeertoPeer(Integer.parseInt(args[0]));
 			peer.startClientSocket();
@@ -99,7 +99,7 @@ public class PeertoPeer implements Cloneable, Runnable {
 			System.out.println(clientSocket.isOutputShutdown());
 			System.out.println(clientSocket.isBound());
 			System.out.println(clientSocket.isClosed());
-					streamWrite(in.readLine());
+					//streamWrite(in.readLine());
 			System.out.println((String)streamRead());
 		String tempString=in.readLine();
 		streamWrite(tempString);
@@ -126,10 +126,6 @@ public class PeertoPeer implements Cloneable, Runnable {
 	streamWrite("Exit");
 		
 
-	}
-
-	private  void startServerSocket(String args[]) {
-//need to call harish game init method
 	}
 
 	@Override

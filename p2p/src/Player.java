@@ -20,6 +20,7 @@ public class Player extends GameEntity implements Runnable {
 	public int numCollectedTreasures;
 	public String msgToPlayerClient;
 	public Socket ps;
+	Character ch;
 	public IOOperations io;
 	GameSingleton gs;
 	public Player(String playerId, GridLocation l,Socket s) {
@@ -27,8 +28,6 @@ public class Player extends GameEntity implements Runnable {
 		gs=GameSingleton.getInstance();
 		ps=s;
 		io=new IOOperations(ps);
-		io.initWrite();
-		io.initRead();
 		//gameServer = s;
 		numCollectedTreasures = 0;
 		//requestQueue = Collections.synchronizedList(new LinkedList<Character>());
@@ -57,15 +56,10 @@ public class Player extends GameEntity implements Runnable {
 	public void run() {
 		io.streamWrite("Game Started");
 		while (true) {
-			try {
-				Thread.sleep(4000);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			System.out.println("Client "+this.id+" "+io.socket.getPort());
-			System.out.println("Client "+this.id+" "+ps.getPort());
-			System.out.println("Player "+this.id+(String)io.streamRead());
+			
+			ch=(Character) io.streamRead();
+			System.out.println(this.id+" "+ch);
+			gs.playerRequestQueue.add(this);
 		}
 	}
 	

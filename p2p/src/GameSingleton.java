@@ -1,5 +1,8 @@
+import java.util.List;
 import java.io.IOException;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -13,6 +16,7 @@ int numTreasures;
 int gridSize;
 int playercounter;
 private Map<String,Player> players;
+public List<Player> playerRequestQueue;
 public int getNumTreasures() {
 	return numTreasures;
 }
@@ -30,6 +34,7 @@ private GameSingleton()
 {
 	playercounter=1;
 	players=new HashMap<String, Player>();
+	playerRequestQueue=Collections.synchronizedList(new ArrayList<Player>());
 }
 public static GameSingleton getInstance()
 {
@@ -60,10 +65,10 @@ public void putPlayerOnGame(Socket playerSocket) throws IOException {
 	while (!vacant(l)) {
 		l.pickAnotherLocation();
 	}
-	Player p = new Player("P" + playercounter, l,playerSocket);
+	Player p = new Player("P" + ++playercounter, l,playerSocket);
 	p.io.streamWrite("Game joined");
 	grid[l.x][l.y] = p;
-	players.put("P"+playercounter++, p);
+	players.put("P"+playercounter, p);
 }
 public void putHostPlayerOnGame() throws IOException {
 	GridLocation l = new GridLocation(gridSize);
@@ -72,7 +77,7 @@ public void putHostPlayerOnGame() throws IOException {
 	}
 	Player p = new Player("P" + playercounter, l);
 	grid[l.x][l.y] = p;
-	players.put("P"+playercounter++, p);
+	players.put("P"+playercounter, p);
 }
 public void initiateGame() {
 	Iterator<String> itr=players.keySet().iterator();

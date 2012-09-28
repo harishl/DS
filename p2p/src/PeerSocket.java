@@ -59,7 +59,7 @@ public class PeerSocket {
 	public void bindSocket(InetSocketAddress bindpoint) {
 		try {
 			if (null != peer) {
-				peer.bind(bindpoint);
+				peer.connect(bindpoint);
 			} else {
 				peer = new Socket(PeerConstants.serverAddress,
 						PeerConstants.port);

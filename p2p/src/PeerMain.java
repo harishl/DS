@@ -11,7 +11,8 @@ public static void main(String args[])
 			if (gridSize <= 1 || numTreasures <= 0)
 				throw new IllegalArgumentException();
 			
-			new Peer(gridSize,numTreasures).start();
+			Peer peer=new Peer(gridSize,numTreasures);
+			peer.start();
 		}
 		catch (IllegalArgumentException e) {
 			System.out.println("Invalid command-line arguments");

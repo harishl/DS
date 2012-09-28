@@ -24,7 +24,7 @@ public class Player {
 	public final int serverPort;
 	private Selector selector = null;
 	SocketChannel socketChannel;
-	
+	char ch;
 	public List<Character> userInputs;
 	private ByteBuffer readBuffer;
 	private ByteBuffer writeBuffer;

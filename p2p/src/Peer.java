@@ -1,4 +1,6 @@
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.net.SocketTimeoutException;
 
@@ -34,23 +36,20 @@ public class Peer extends Thread {
 				ps.ss.setSoTimeout(PeerConstants.timedelay);
 				gs.putPlayerOnGame(ps.getPeer());
 
-			} 
-			catch (SocketTimeoutException e) {
-				flag=false;
+			} catch (SocketTimeoutException e) {
+				flag = false;
 				System.out.println("Error in accepting the client");
-			}
-			catch (IOException e) {
+			} catch (IOException e) {
 				System.out.println("Error in accepting the client");
 			}
 		}
-		
+
 		gs.initiateGame();
-		while(true)
-		{
-			//System.out.println("HI");
+		while (true) {
+			// System.out.println("HI");
 			try {
 				Thread.sleep(2000);
-				
+
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -61,20 +60,22 @@ public class Peer extends Thread {
 	public void startPlayer() {
 		ps.bindSocket(getServerAddress());
 		io = new IOOperations(ps.getPeer());
-		while(true){
 		System.out.println((String) io.streamRead());
-		io.streamWrite("Hi");
-		try {
-			Thread.sleep(4000);
-			System.out.println(ps.peer.getPort());
-			System.out.println(ps.getPeer().getPort());
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+		char input;
+		System.out.println((String) io.streamRead());
+		while (true) {
+			System.out.println("up = w | down = s | left = a | right = d");
+			try {
+				input = (char) br.read();
+				if (input == 'w' || input == 'a' || input == 's'
+						|| input == 'd')
+					io.streamWrite(input);
+			} catch (IOException e) {
+				System.out.println("hi");
+			}
+			System.out.println("From Server"+io.streamRead());
 		}
-		}
-		
-		
 
 	}
 
