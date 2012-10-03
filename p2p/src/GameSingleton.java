@@ -7,8 +7,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-
-
 public class GameSingleton {
 private static GameSingleton gameInstance=null;
 public GameEntity[][] grid;
