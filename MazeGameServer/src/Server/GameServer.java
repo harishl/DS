@@ -133,8 +133,13 @@ public class GameServer implements Runnable{
 						continue;
 
 					// has a player attempted to join?
-					if (selKey.isAcceptable() && !gameStarted) {
-						acceptPlayer();
+					if (selKey.isAcceptable()) {
+						if (!gameStarted) {
+							acceptPlayer();
+						}
+						else {
+							kickPlayerOut();
+						}
 					}
 					else if (selKey.isReadable()) {
 						readDataFromPlayer(selKey);
@@ -170,6 +175,24 @@ public class GameServer implements Runnable{
 		}
 	}
 
+	private void kickPlayerOut() throws IOException {
+		SocketChannel aPlayerScktChnl = svrScktChnl.accept();
+		aPlayerScktChnl.configureBlocking(false);
+		putPlayerOnGame(aPlayerScktChnl);
+		writeRejectMsgToPlayer(aPlayerScktChnl);
+	}
+
+	private void writeRejectMsgToPlayer(SocketChannel scktChannel) throws IOException {
+		writeBuffer.clear();
+		String msg = "Game has started. Cannot Join.";
+		writeBuffer = ByteBuffer.wrap(msg.toUpperCase().getBytes());
+		scktChannel.register(selector, SelectionKey.OP_WRITE);
+		scktChannel.write(writeBuffer);
+		SelectionKey selKey = scktChannel.keyFor(selector);
+		selKey.cancel();
+		scktChannel.close();
+	}
+
 	private void finishGame() throws IOException{
 		Player winner = null;
 		int maxTreasures = 0;
@@ -199,6 +222,7 @@ public class GameServer implements Runnable{
 
 	private void acceptPlayer() throws IOException {
 		SocketChannel aPlayerScktChnl = svrScktChnl.accept();
+		System.out.println("aPlayerScktChnl.socket().getPort() = " + aPlayerScktChnl.socket().getPort());
 		aPlayerScktChnl.configureBlocking(false);
 		playerCounter++;
 		System.out.println("Players joined: " + playerCounter);
