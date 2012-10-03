@@ -83,9 +83,10 @@ public class Player {
 				while (selKeyIterator.hasNext()) {
 					SelectionKey key = (SelectionKey) selKeyIterator.next();
 					selKeyIterator.remove();
-					if (!key.isValid())
+					if (!key.isValid()) {
 						continue;
-
+					}
+					
 					if (key.isReadable()) {
 						readDataFromServer(key);
 					}
@@ -154,7 +155,9 @@ public class Player {
 		if(dataFromServer.contains("TREASURE")) {
 			System.out.println("Up = w | Down = s | Left = a | Right = d | NoMove = x");
 		}
-		
+		if(dataFromServer.contains("CANNOT JOIN")) {
+			System.exit(0);
+		}
 	}
 
 }

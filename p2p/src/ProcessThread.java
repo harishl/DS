@@ -13,7 +13,6 @@ public void run()
 		{
 			Player pl=gs.playerRequestQueue.remove(0);
 			//Call game logic for the move
-			
 			pl.io.streamWrite(pl.ch);
 		}
 	}
