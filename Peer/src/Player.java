@@ -1,4 +1,4 @@
-package peer;
+
 
 import java.nio.channels.SocketChannel;
 import java.util.Collections;
@@ -29,7 +29,7 @@ public class Player extends GameEntity implements Runnable {
 		gs=GameSingleton.getInstance();
 		numCollectedTreasures = 0;
 		sctChannel=sct;
-	//	io=new IOOperations(sct.socket());
+	//io=new IOOperations(sct.socket());
 		requestQueue = Collections.synchronizedList(new LinkedList<Character>());
 	}
 	

@@ -1,6 +1,6 @@
-package peer;
-
 import java.io.IOException;
+
+
 
 public class PeerMain {
 public static void main(String args[])
@@ -24,18 +24,14 @@ public static void main(String args[])
 			System.exit(0); // exit
 		}
 	
-		
 	
 	}
 	else if(args.length==0)
 	{
-		Peer peer=new Peer();
-		try {
-			peer.connectToServer();
-		} catch (IOException e) {
-			System.exit(0);
-		}
-		peer.startPlayer();
+	Peer peer=new Peer();
+		peer.connectToServer();
+
+	peer.startPlayer();
 	}
 	else
 	{

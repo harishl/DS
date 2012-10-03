@@ -1,6 +1,5 @@
-package peer;
+
 import java.io.IOException;
-import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -19,6 +18,8 @@ private static GameSingleton gameInstance=null;
 public ByteBuffer readBuffer;
 public ByteBuffer writeBuffer;
 public GameEntity[][] grid;
+public String primaryPlayerId=null;
+public String backupPlayerId=null;
 int numTreasures;
 int gridSize;
 int playercounter;
@@ -46,6 +47,7 @@ private GameSingleton()
 	players=new HashMap<SocketChannel, Player>();
 	playerRequestQueue=Collections.synchronizedList(new ArrayList<Player>());
 	readBuffer = ByteBuffer.allocate(8192);
+	System.out.println("I am here");
 	writeBuffer = ByteBuffer.allocate(8192);
 }
 public static GameSingleton getInstance()
@@ -90,6 +92,7 @@ public void finishGame() throws IOException{
 		goodByeMsg = prepareResponseMsg(goodByeMsg);
 		writeBuffer = ByteBuffer.wrap(goodByeMsg.getBytes());
 		s.write(writeBuffer);
+		System.out.println(goodByeMsg);
 		key.cancel();
 		s.close();
 	}
@@ -138,7 +141,7 @@ public void writeDataToPlayer(SelectionKey key) throws IOException {
 public void writeWelcomeMsgToPlayer(SocketChannel scktChannel) throws IOException {
 	writeBuffer.clear();
 	String msg = "You've joined the game. \nYou are Player " 
-			+ players.get(scktChannel).id 
+			+ players.get(scktChannel).id +","
 			+ "\nPlease wait for start signal.";
 	msg = prepareResponseMsg(msg);
 	writeBuffer = ByteBuffer.wrap(msg.getBytes());
@@ -156,6 +159,7 @@ public void putPlayerOnGame(SocketChannel aPlayer) throws IOException {
 	Player p = new Player("P" + playercounter, l,aPlayer);
 	grid[l.x][l.y] = p;
 	players.put(aPlayer, p);
+	System.out.println("Put player on game");
 	
 }
 
@@ -172,6 +176,11 @@ public String prepareResponseMsg(String s) {
 		}
 	}
 	response += "\n\n\n" + s.toUpperCase() + "\n";
+	if((null!=primaryPlayerId)&&(null==backupPlayerId))
+	{
+		response+=" backup";
+		backupPlayerId="P"+playercounter;
+	}
 	return response;
 }
 

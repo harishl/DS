@@ -67,6 +67,7 @@ public void putPlayerOnGame(Socket playerSocket) throws IOException {
 	p.io.streamWrite("Game joined");
 	grid[l.x][l.y] = p;
 	players.put("P"+playercounter, p);
+	System.out.println("Player put on game");
 }
 public void putHostPlayerOnGame() throws IOException {
 	GridLocation l = new GridLocation(gridSize);

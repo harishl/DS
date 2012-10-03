@@ -1,7 +1,4 @@
-package peer;
-/**
- * Abstract base class which for objects (Treasures and Players) in the game grid. 
- */
+
 
 /**
  * @author harish
