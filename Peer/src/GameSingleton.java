@@ -3,14 +3,11 @@ import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Serializable;
-import java.nio.ByteBuffer;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
-import java.util.Map;
 
 
 public class GameSingleton implements Serializable {
@@ -25,8 +22,7 @@ public String backupPlayerId=null;
 int numTreasures;
 int gridSize;
 int playercounter;
-FileWriter fstream;
-BufferedWriter out;
+String filename;
 private static final long serialVersionUID = -403250971215465053L;
 public List<Player> playerlist;
 //public  Map<SocketChannel, Player> players;
@@ -109,6 +105,13 @@ public void putPlayerOnGame(SocketChannel aPlayer,Peer peer) throws IOException 
 	
 	
 }
+public String getTime()
+{
+	String time;
+	Date date=new Date();
 
+	time="Time: "+Integer.toString(date.getHours())+":"+Integer.toString(date.getMinutes())+":"+Integer.toString(date.getSeconds());
+	return time;
+}
 
 }

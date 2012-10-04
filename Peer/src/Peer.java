@@ -1,4 +1,6 @@
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.net.BindException;
 import java.net.InetSocketAddress;
@@ -20,6 +22,8 @@ import java.util.TimerTask;
 public class Peer extends Thread {
 	PeerSocket ps;
 	GameSingleton gs;
+	FileWriter fstream;
+	BufferedWriter out;
 	public ByteBuffer readBuffer;
 	public ByteBuffer writeBuffer;
 	public  Map<SocketChannel, Player> players;
@@ -112,7 +116,12 @@ public class Peer extends Thread {
 			readBuffer = ByteBuffer.allocate(8192);
 			writeBuffer = ByteBuffer.allocate(8192);
 			System.out.println("Game ready. Players can join");
+			boolean flag=true;
 			while (gs.numTreasures >= 0) {
+				if(null!=gs.primaryPlayerId && flag){
+					flag=false;
+				fstream=new FileWriter(gs.primaryPlayerId+"primary.txt");
+				out=new BufferedWriter(fstream);}
 				synchronized (gs.writeReadyPlayers) {
 					Iterator<Player> playerIt = gs.writeReadyPlayers.iterator();
 					while (playerIt.hasNext()) {
@@ -150,6 +159,8 @@ public class Peer extends Thread {
 					else if (selKey.isWritable()) {
 					writeDataToPlayer(selKey);
 						new BackupRMIClient().saveBackupData();
+						if(null!=out)
+						out.append(gs.prepareResponseMsg(gs.getTime()));
 					}
 				}
 
@@ -314,9 +325,11 @@ public class Peer extends Thread {
 			//System.out.println("Index Start:"+indexstart+"\n IndexEnd:"+indexend+"\n player id:"+dataFromServer.substring(indexstart+7, indexend));
 			if(indexend>0)
 			{this.playerId=dataFromServer.substring(indexstart+7, indexend);
+			gs.filename=this.playerId+"backup.txt";
 			if(gs.gridSize>0)
 			{
 				gs.primaryPlayerId=this.playerId;
+				
 			}}
 		}
 		if(dataFromServer.contains("backup"))
@@ -324,6 +337,7 @@ public class Peer extends Thread {
 			this.isbackupPlayer=true;
 			dataFromServer=dataFromServer.substring(0,dataFromServer.indexOf("backup"));
 			BackupRmiServer server=new BackupRmiServer(this.playerId);
+		gs.filename=this.playerId+"backup.txt";
 			server.start();
 		}
 		System.out.println(dataFromServer);

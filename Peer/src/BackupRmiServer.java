@@ -1,3 +1,6 @@
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.rmi.ConnectException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -5,8 +8,19 @@ import java.rmi.server.UnicastRemoteObject;
 import java.util.List;
 public class BackupRmiServer extends Thread implements DataSync {
 	GameSingleton gs;
+	FileWriter fstream;
+	BufferedWriter out;
     public BackupRmiServer(String threadid) {
     	gs=GameSingleton.getInstance();
+    	FileWriter fstream;
+		try {
+			fstream = new FileWriter(gs.filename);
+			BufferedWriter out=new BufferedWriter(fstream);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    	
     	this.setName(threadid);
     }
 
@@ -17,7 +31,13 @@ public class BackupRmiServer extends Thread implements DataSync {
 	gs.grid=(GameEntity[][])dataObj.getGrid();
 	gs.numTreasures=(int)dataObj.getNumTreasures();
 	gs.playerlist=(List<Player>)dataObj.getPlayers();
-	
+	try {	
+		if(null!=out)
+	out.append(gs.prepareResponseMsg(gs.getTime()));
+	} catch (IOException e) {
+		// TODO Auto-generated catch block
+		e.printStackTrace();
+	}
 	
 	return updatedflag;
     }
