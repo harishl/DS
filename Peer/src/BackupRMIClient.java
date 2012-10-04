@@ -1,3 +1,5 @@
+import java.rmi.NotBoundException;
+import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 public class BackupRMIClient  {
@@ -6,22 +8,20 @@ GameSingleton gs;
     	gs=GameSingleton.getInstance();
     }
 
-    public  void saveBackupData() {
+    public  void saveBackupData() throws RemoteException, NotBoundException {
 
 	String host = null;
-	try {
+
 DataObject obj=new DataObject();
 obj.setGrid(gs.grid);
 obj.setGridSize(gs.gridSize);
 obj.setNumTreasures(gs.numTreasures);
 obj.setPlayers(gs.playerlist);
+obj.setCrashedPlayersandBackupserver(gs.crashedPlayersandBackupserver);
 	    Registry registry = LocateRegistry.getRegistry(host);
 	    DataSync stub = (DataSync) registry.lookup("DataSync");
 	    boolean response = stub.backupData(obj);
 	    System.out.println("response: " + response);
-	} catch (Exception e) {
-	    System.err.println("Client exception: " + e.toString());
-	    e.printStackTrace();
-	}
+	
     }
 }

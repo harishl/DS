@@ -10,7 +10,14 @@ public GameEntity[][] getGrid() {
 public void setGrid(GameEntity[][] grid) {
 	this.grid = grid;
 }
-
+public List<String> crashedPlayersandBackupserver;
+public List<String> getCrashedPlayersandBackupserver() {
+	return crashedPlayersandBackupserver;
+}
+public void setCrashedPlayersandBackupserver(
+		List<String> crashedPlayersandBackupserver) {
+	this.crashedPlayersandBackupserver = crashedPlayersandBackupserver;
+}
 private GameEntity[][] grid;
 int numTreasures;
 public int getNumTreasures() {

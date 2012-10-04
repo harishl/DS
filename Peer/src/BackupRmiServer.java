@@ -34,8 +34,9 @@ public class BackupRmiServer extends Thread implements DataSync {
 		gs.gridSize = (int) dataObj.getGridSize();
 		gs.grid = (GameEntity[][]) dataObj.getGrid();
 		gs.numTreasures = (int) dataObj.getNumTreasures();
+		System.out.println(gs.numTreasures);
 		gs.playerlist = (List<Player>) dataObj.getPlayers();
-
+		gs.crashedPlayersandBackupserver=(List<String>) dataObj.getCrashedPlayersandBackupserver();
 		System.out
 				.println("----" + gs.prepareResponseMsg(gs.getTime()) + "---");
 		 try {
