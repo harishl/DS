@@ -13,7 +13,7 @@ public GameEntity[][] grid;
 int numTreasures;
 int gridSize;
 int playercounter;
-private Map<String,Player> players;
+Map<String,Player> players;
 public List<Player> playerRequestQueue;
 public int getNumTreasures() {
 	return numTreasures;

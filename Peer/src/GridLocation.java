@@ -1,16 +1,17 @@
 
+import java.io.Serializable;
 import java.util.Random;
 
 /**
  * @author harish
  *
  */
-public class GridLocation {
+public class GridLocation implements Serializable{
 	public int x;
 	public int y;
 	private int gridRowColSize;
 	private Random randomNoGenerator;
-	
+	private static final long serialVersionUID = -403250971215465050L;
 	public GridLocation(int x, int y){
 		this.x = x;
 		this.y = y;

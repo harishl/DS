@@ -7,7 +7,7 @@
  * @author harish
  *
  */
-public class Treasures extends GameEntity {
+public class Treasures extends GameEntity{
 	
 	public int treasureCountInLocation;
 	public Treasures(GridLocation l){

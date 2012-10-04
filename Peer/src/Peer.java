@@ -13,12 +13,18 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 
 public class Peer extends Thread {
 	PeerSocket ps;
 	GameSingleton gs;
+	public ByteBuffer readBuffer;
+	public ByteBuffer writeBuffer;
+	public  Map<SocketChannel, Player> players;
+	public Selector selector=null;
+	public Selector playerSelector=null;
 	private ServerSocketChannel svrScktChnl;
 	private SocketChannel socketChannel;
 	public List<Character> userInputs;
@@ -35,9 +41,11 @@ public class Peer extends Thread {
 	Peer() {
 		ps = new PeerSocket();
 		gs=GameSingleton.getInstance();
+		readBuffer = ByteBuffer.allocate(8192);
+		writeBuffer = ByteBuffer.allocate(8192);
 		ishostPlayer = false;
 		try {
-			gs.playerSelector = Selector.open();
+			playerSelector= Selector.open();
 		} catch (ClosedChannelException e) {
 			System.out.println("An Closed Channel Exception occurred. " + e.getMessage());
 		} catch (IOException e) {
@@ -46,9 +54,11 @@ public class Peer extends Thread {
 	}
 	Peer(boolean isserverPlayer)
 	{
+		readBuffer = ByteBuffer.allocate(8192);
+		writeBuffer = ByteBuffer.allocate(8192);
 		gs=GameSingleton.getInstance();
 		try {
-			gs.playerSelector = Selector.open();
+			playerSelector= Selector.open();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -64,6 +74,7 @@ public class Peer extends Thread {
 		gs.setGridSize(gridSize);
 		gs.setNumTreasures(noOfTressures);
 		gs.populateTreasures();
+		//players=new HashMap<SocketChannel, Player>();
 		this.timerStarted = false;
 		this.gameStarted = false;
 		this.timeBeforeStart = PeerConstants.timedelay; 
@@ -89,33 +100,34 @@ public class Peer extends Thread {
 		try {
 		Peer hostPlayer=new Peer(true);
 		hostPlayer.start();
-		gs.selector = Selector.open(); // or SelectorProvider.provider.open() ??
+		selector = Selector.open(); // or SelectorProvider.provider.open() ??
 			svrScktChnl = ServerSocketChannel.open();
 			svrScktChnl.socket().bind(new InetSocketAddress(PeerConstants.port));
 			svrScktChnl.configureBlocking(false); // makes server to accept without blocking
-			SelectionKey key = svrScktChnl.register(gs.selector, SelectionKey.OP_ACCEPT);
+			SelectionKey key = svrScktChnl.register(selector, SelectionKey.OP_ACCEPT);
 			System.out.println("SelectionKey: " + key.channel().toString());
 			
-			gs.players = new HashMap<SocketChannel, Player>();
+		players = new HashMap<SocketChannel, Player>();
 			gs.writeReadyPlayers = Collections.synchronizedList(new ArrayList<Player>());
-			
+			readBuffer = ByteBuffer.allocate(8192);
+			writeBuffer = ByteBuffer.allocate(8192);
 			System.out.println("Game ready. Players can join");
 			while (gs.numTreasures >= 0) {
 				synchronized (gs.writeReadyPlayers) {
 					Iterator<Player> playerIt = gs.writeReadyPlayers.iterator();
 					while (playerIt.hasNext()) {
 						Player aWriteReadyPlayer = (Player) playerIt.next();
-						SocketChannel scktChnl = gs.getscktChannel(aWriteReadyPlayer);
-						SelectionKey selKey = scktChnl.keyFor(gs.selector);
+						SocketChannel scktChnl = getscktChannel(aWriteReadyPlayer);
+						SelectionKey selKey = scktChnl.keyFor(selector);
 						selKey.interestOps(SelectionKey.OP_WRITE);
 					}
 					gs.writeReadyPlayers.clear();
 				}
 	
-				if (gs.selector.selectNow() == 0)
+				if (selector.selectNow() == 0)
 					continue;
 				
-				Iterator<SelectionKey> selKeyIterator = gs.selector.selectedKeys().iterator();
+				Iterator<SelectionKey> selKeyIterator = selector.selectedKeys().iterator();
 				
 				while (selKeyIterator.hasNext()) {
 					SelectionKey selKey = (SelectionKey) selKeyIterator.next();
@@ -124,14 +136,20 @@ public class Peer extends Thread {
 						continue;
 
 					// has a player attempted to join?
-					if (selKey.isAcceptable() && !gameStarted) {
-						acceptPlayer();
+					if (selKey.isAcceptable()) {
+						if (!gameStarted) {
+							acceptPlayer();
+						}
+						else {
+							kickPlayerOut();
+						}
 					}
 					else if (selKey.isReadable()) {
-						gs.readDataFromPlayer(selKey);
+						readDataFromPlayer(selKey);
 					}
 					else if (selKey.isWritable()) {
-						gs.writeDataToPlayer(selKey);
+					writeDataToPlayer(selKey);
+						new BackupRMIClient().saveBackupData();
 					}
 				}
 
@@ -144,7 +162,7 @@ public class Peer extends Thread {
 				if (gs.numTreasures == 0) break;
 			}
 			
-			gs.finishGame();
+			finishServerGame();
 
 		}
 		catch (NullPointerException e) {
@@ -171,7 +189,7 @@ public class Peer extends Thread {
 		socketChannel = SocketChannel.open();
 		socketChannel.configureBlocking(false); //non-blocking socket channel
 		socketChannel.connect(getServerAddress());
-		SelectionKey key = socketChannel.register(gs.playerSelector, SelectionKey.OP_CONNECT | SelectionKey.OP_READ);
+		SelectionKey key = socketChannel.register(playerSelector, SelectionKey.OP_CONNECT | SelectionKey.OP_READ);
 		socketChannel.finishConnect();
 		if (key.isReadable()) {
 			readDataFromServer(key);
@@ -196,16 +214,16 @@ public class Peer extends Thread {
 		try {
 			while (gameOn) {
 				if(userInputs.size() > 0) { 
-					gs.writeBuffer = ByteBuffer.allocate(8192);
-					gs.writeBuffer.clear();
-					gs.writeBuffer = ByteBuffer.wrap(userInputs.remove(0).toString().getBytes());
-					SelectionKey key = socketChannel.keyFor(gs.playerSelector);
+					writeBuffer = ByteBuffer.allocate(8192);
+					writeBuffer.clear();
+					writeBuffer = ByteBuffer.wrap(userInputs.remove(0).toString().getBytes());
+					SelectionKey key = socketChannel.keyFor(playerSelector);
 					key.interestOps(SelectionKey.OP_WRITE);
 				}
-				if (gs.playerSelector.selectNow() == 0)
+				if (playerSelector.selectNow() == 0)
 					continue;
 				
-				Iterator<SelectionKey> selKeyIterator = gs.playerSelector.selectedKeys().iterator();
+				Iterator<SelectionKey> selKeyIterator = playerSelector.selectedKeys().iterator();
 				
 				while (selKeyIterator.hasNext()) {
 					
@@ -256,27 +274,27 @@ public class Peer extends Thread {
 		aPlayerScktChnl.configureBlocking(false);
 		gs.playercounter++;
 		System.out.println("Players joined: " + gs.playercounter);
-		gs.putPlayerOnGame(aPlayerScktChnl);
-		gs.writeWelcomeMsgToPlayer(aPlayerScktChnl);
+		gs.putPlayerOnGame(aPlayerScktChnl,this);
+		writeWelcomeMsgToPlayer(aPlayerScktChnl);
 		
 	}
 	private void finishPlaying() throws IOException{
-		socketChannel.keyFor(	gs.playerSelector).cancel();
+		socketChannel.keyFor(playerSelector).cancel();
 		socketChannel.close();
 		System.exit(0);
 	}
 
 	private void writeDataToServer(SelectionKey key) throws IOException {
-		socketChannel.write(gs.writeBuffer);
+		socketChannel.write(writeBuffer);
 		key.interestOps(SelectionKey.OP_READ);
 	}
 
 	private void readDataFromServer(SelectionKey key) throws IOException {
-		gs.readBuffer = ByteBuffer.allocate(8192);
-		gs.readBuffer.clear();
+		readBuffer = ByteBuffer.allocate(8192);
+		readBuffer.clear();
 		int readLen;
 		try{
-			readLen = socketChannel.read(gs.readBuffer);
+			readLen = socketChannel.read(readBuffer);
 		    if (readLen == -1) {
 		    	throw new IOException();
 		    }
@@ -286,56 +304,165 @@ public class Peer extends Thread {
 			return;
 		}
 		
-		String dataFromServer = new String(gs.readBuffer.array());
+		String dataFromServer = new String(readBuffer.array());
 		
-		if(dataFromServer.contains("backup"))
-		{
-			this.isbackupPlayer=true;
-			dataFromServer=dataFromServer.substring(0,dataFromServer.indexOf("backup"));
-			
-		}
-		System.out.println(dataFromServer);
+
 		if(dataFromServer.contains("PLAYER"))
 		{
 			int indexstart=dataFromServer.indexOf("PLAYER");
 			int indexend=dataFromServer.indexOf(",");
 			//System.out.println("Index Start:"+indexstart+"\n IndexEnd:"+indexend+"\n player id:"+dataFromServer.substring(indexstart+7, indexend));
-			this.playerId=dataFromServer.substring(indexstart+7, indexend);
+			if(indexend>0)
+			{this.playerId=dataFromServer.substring(indexstart+7, indexend);
 			if(gs.gridSize>0)
 			{
 				gs.primaryPlayerId=this.playerId;
-			}
+			}}
 		}
-		else if(dataFromServer.contains("START MOVING")) {
+		if(dataFromServer.contains("backup"))
+		{
+			this.isbackupPlayer=true;
+			dataFromServer=dataFromServer.substring(0,dataFromServer.indexOf("backup"));
+			BackupRmiServer server=new BackupRmiServer(this.playerId);
+			server.start();
+		}
+		System.out.println(dataFromServer);
+		if(dataFromServer.contains("START MOVING")) {
 			userInputs.clear();
 			canMove = true;
 			System.out.println("Up = w | Down = s | Left = a | Right = d | NoMove = x");
 		}
-		else if(dataFromServer.contains("ENDED")) {
+		 if(dataFromServer.contains("ENDED")) {
 			gameOn = false;
 			canMove = false;
 		}
-		else if(dataFromServer.contains("TREASURE")) {
+		if(dataFromServer.contains("TREASURE")) {
 			System.out.println("Up = w | Down = s | Left = a | Right = d | NoMove = x");
+		}
+		if(dataFromServer.contains("CANNOT JOIN")) {
+			System.exit(0);
 		}
 		System.out.println(this.isbackupPlayer);
 		
 	}
 
+	private void kickPlayerOut() throws IOException {
+		SocketChannel aPlayerScktChnl = svrScktChnl.accept();
+		aPlayerScktChnl.configureBlocking(false);
+		//putPlayerOnGame(aPlayerScktChnl);
+		writeRejectMsgToPlayer(aPlayerScktChnl);
+	}	
+	private void writeRejectMsgToPlayer(SocketChannel scktChannel) throws IOException {
+		writeBuffer.clear();
+		String msg = "Game has started. Cannot Join.";
+		writeBuffer = ByteBuffer.wrap(msg.toUpperCase().getBytes());
+		scktChannel.register(selector, SelectionKey.OP_WRITE);
+		scktChannel.write(writeBuffer);
+		SelectionKey selKey = scktChannel.keyFor(selector);
+		selKey.cancel();
+		scktChannel.close();
+	}
+	public void finishServerGame() throws IOException{
+		Player winner = null;
+		int maxTreasures = 0;
+		for (SocketChannel s : players.keySet()) {
+			if (players.get(s).numCollectedTreasures > maxTreasures) {
+				winner = players.get(s);
+				maxTreasures = winner.numCollectedTreasures;
+			}
+		}
+		
+		for (SocketChannel s : players.keySet()) {
+			writeBuffer.clear();
+			SelectionKey key = s.keyFor(selector);
+			key.interestOps(SelectionKey.OP_WRITE);
+			String goodByeMsg = "Player " + winner.id + " has won the game. The game has ended.";
+			goodByeMsg = gs.prepareResponseMsg(goodByeMsg);
+			writeBuffer = ByteBuffer.wrap(goodByeMsg.getBytes());
+			s.write(writeBuffer);
+			System.out.println(goodByeMsg);
+			key.cancel();
+			s.close();
+		}
+		selector.close();
+		
+		//Exit the program
+		System.exit(0);
+	}
+
+public void readDataFromPlayer(SelectionKey key) throws IOException {
+	readBuffer.clear();
+	SocketChannel scktChannel = (SocketChannel)key.channel();
+	int dataSize;
+	try{
+	dataSize = scktChannel.read(readBuffer);
+	} catch (IOException e) {
+		key.cancel();
+		scktChannel.close();
+		return;
+	}
+	System.out.println(new String(readBuffer.array()));
+	if(dataSize == -1) {
+		// The player client has shut it's socket down. 
+		key.channel().close();
+		key.cancel();
+		return;
+	}
+	Player p = players.get(scktChannel);
 	
+	synchronized (p.requestQueue) {
+		p.requestQueue.add((char)readBuffer.array()[0]);
+		p.requestQueue.notify();
+	}
+}
+
+public void writeDataToPlayer(SelectionKey key) throws IOException {
+	writeBuffer.clear();
+	SocketChannel scktChannel = (SocketChannel) key.channel(); 
+	Player playerToWriteTo = players.get(scktChannel);
+	String responseMsg = gs.prepareResponseMsg(playerToWriteTo.msgToPlayerClient);
+	writeBuffer = ByteBuffer.wrap(responseMsg.getBytes());
+	scktChannel.write(writeBuffer);
+	key.interestOps(SelectionKey.OP_READ);
+	
+}
+
+public void writeWelcomeMsgToPlayer(SocketChannel scktChannel) throws IOException {
+	writeBuffer.clear();
+	String msg = "You've joined the game. \nYou are Player " 
+			+ players.get(scktChannel).id +","
+			+ "\nPlease wait for start signal.";
+	msg = gs.prepareResponseMsg(msg);
+	writeBuffer = ByteBuffer.wrap(msg.getBytes());
+	scktChannel.register(selector, SelectionKey.OP_WRITE);
+	scktChannel.write(writeBuffer);
+	SelectionKey selKey = scktChannel.keyFor(selector);
+	selKey.interestOps(SelectionKey.OP_READ);
+}
+
+
+
+
+public SocketChannel getscktChannel(Player aWriteReadyPlayer) {
+	for(SocketChannel s : players.keySet()) {
+		if(players.get(s) == aWriteReadyPlayer) return s;
+	}
+	return null;
+}
+
 	class LoopBreakerTask extends TimerTask {
 		@Override
 		public void run() {
 			
 			gameStarted = true;
 			// register all joined players for read
-			for (SocketChannel s : gs.players.keySet()) {
+			for (SocketChannel s : players.keySet()) {
 
 				// set interest as read
 				
-				s.keyFor(gs.selector).interestOps(SelectionKey.OP_READ);
+				s.keyFor(selector).interestOps(SelectionKey.OP_READ);
 				// start the player thread
-				Player p = gs.players.get(s);
+				Player p = players.get(s);
 				new Thread(p).start(); 
 				p.msgToPlayerClient = "start moving";
 			
