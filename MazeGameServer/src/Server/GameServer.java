@@ -178,7 +178,6 @@ public class GameServer implements Runnable{
 	private void kickPlayerOut() throws IOException {
 		SocketChannel aPlayerScktChnl = svrScktChnl.accept();
 		aPlayerScktChnl.configureBlocking(false);
-		putPlayerOnGame(aPlayerScktChnl);
 		writeRejectMsgToPlayer(aPlayerScktChnl);
 	}
 
