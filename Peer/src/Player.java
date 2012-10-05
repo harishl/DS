@@ -21,7 +21,6 @@ public class Player extends GameEntity implements Runnable {
 	public boolean interestToWrite;
 	public int numCollectedTreasures;
 	public String msgToPlayerClient;	
-	IOOperations io;
 
 	public Player(String playerId, GridLocation l,SocketChannel sct) {
 		super(playerId, l);
