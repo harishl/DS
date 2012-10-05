@@ -89,6 +89,7 @@ public class BackupRmiServer extends Thread implements DataSync {
 		try {
 			registry.unbind("DataSync");
 			registry.bind("DataSync", stub);
+			UnicastRemoteObject.unexportObject(this, true);
 			System.err.println("Server ready");
 		} catch (Exception ee) {
 			System.err.println("Server exception: " + ee.toString());

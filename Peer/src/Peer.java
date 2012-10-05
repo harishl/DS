@@ -104,6 +104,8 @@ public class Peer extends Thread {
 
 	public void run() {
 		if (isbackupPlayer) {
+			/*boolean flag=true;
+			while(flag){*/
 			try {
 				selector = Selector.open();
 				svrScktChnl = ServerSocketChannel.open();
@@ -124,6 +126,7 @@ public class Peer extends Thread {
 				if (file.isFile())
 					file.delete();
 				file.createNewFile();
+			//	flag=false;
 
 			} catch (NullPointerException e) {
 				System.out
@@ -134,12 +137,13 @@ public class Peer extends Thread {
 						.println("ClosedChannelException occurred in Peer run()");
 				e.printStackTrace();
 			} catch (BindException e) {
+				//flag=true;
 				System.out.println("port already in use. Exiting");
-				System.exit(0);
+				
 			} catch (IOException e) {
 				System.out.println("IOException occurred in Peer run()");
 				e.printStackTrace();
-			}
+			}//}
 			while (gs.numTreasures >= 0) {
 				try {
 					synchronized (gs.writeReadyPlayers) {
@@ -783,9 +787,9 @@ public class Peer extends Thread {
 			server = new BackupRmiServer(this.playerId + "rmi");
 			server.start();
 			Peer p = new Peer(this.playerId);
-			p.start();
+		p.start();
 			
-
+System.out.println("End of Backup"+gs.backpServerPort);
 		}
 		System.out.println(dataFromServer);
 		if (dataFromServer.contains("START MOVING")) {
