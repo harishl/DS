@@ -99,6 +99,7 @@ public class Peer extends Thread {
 		this.playerId = id;
 		gs = GameSingleton.getInstance();
 		gs.primaryPlayerId = this.playerId;
+		
 	}
 
 	public void run() {
@@ -557,8 +558,11 @@ public class Peer extends Thread {
 								// start the player thread
 								Player p = players.get(s);
 								new Thread(p).start();
-								if (null == gs.backupPlayerId
-										&& !gs.primaryPlayerId.equals(p.id)) {
+								System.out.println(" gs.backupPlayerId"+ gs.backupPlayerId);
+								System.out.println("gs.primaryPlayerId"+gs.primaryPlayerId);
+								System.out.println("p.id"+p.id);
+								System.out.println(gs.backupPlayerId.trim().equalsIgnoreCase(p.id.trim()));
+								if (gs.backupPlayerId.trim().equalsIgnoreCase(p.id.trim())) {
 									p.msgToPlayerClient = "Game Resumed backup";
 								} else {
 									p.msgToPlayerClient = "Game Resumed";
@@ -617,7 +621,8 @@ public class Peer extends Thread {
 				}
 				if (!socketChannel.isOpen()) {
 					if (this.isbackupPlayer) {
-						server.interrupt();
+						server.stopServer();
+						System.out.println("RMI server interrupted");
 						gs.crashedPlayersandBackupserver.add(gs.primPlayerIdfromRMI);
 					}
 					socketChannel.close();
@@ -742,9 +747,11 @@ public class Peer extends Thread {
 			}
 			else {
 				temp=dataFromServer.substring(4);
+
 			}
 			System.out.println("temp:" + temp);
-			gs.backpServerPort = Integer.parseInt(temp.trim());
+			gs.backpServerPort = Integer.parseInt(temp.trim()) + 1;
+
 			System.out.println(gs.backpServerPort);
 			dataFromServer = dataFromServer.substring(dataFromServer
 					.indexOf(" ") + 1);
@@ -764,15 +771,20 @@ public class Peer extends Thread {
 				}
 			}
 		}
-		if (dataFromServer.contains("backup")) {
+		if (dataFromServer.contains("backup")||dataFromServer.contains("BACKUP")) {
 			this.isbackupPlayer = true;
+			if(dataFromServer.contains("backup"))
 			dataFromServer = dataFromServer.substring(0,
 					dataFromServer.indexOf("backup"));
+			else
+				dataFromServer = dataFromServer.substring(0,
+						dataFromServer.indexOf("BACKUP"));
 			gs.filename = this.playerId + "backup.txt";
 			server = new BackupRmiServer(this.playerId + "rmi");
+			server.start();
 			Peer p = new Peer(this.playerId);
 			p.start();
-			server.start();
+			
 
 		}
 		System.out.println(dataFromServer);
@@ -793,7 +805,7 @@ public class Peer extends Thread {
 		if (dataFromServer.contains("CANNOT JOIN")) {
 			System.exit(0);
 		}
-		System.out.println(this.isbackupPlayer);
+	//	System.out.println(this.isbackupPlayer);
 
 	}
 
@@ -831,15 +843,17 @@ public class Peer extends Thread {
 				continue;
 			writeBuffer.clear();
 			SelectionKey key = s.keyFor(selector);
-			key.interestOps(SelectionKey.OP_WRITE);
-			String goodByeMsg = "Player " + winner.id
-					+ " has won the game. The game has ended.";
-			goodByeMsg = gs.prepareResponseMsg(goodByeMsg);
-			writeBuffer = ByteBuffer.wrap(goodByeMsg.getBytes());
-			s.write(writeBuffer);
-			System.out.println(goodByeMsg);
-			key.cancel();
-			s.close();
+			if(key != null) {
+				key.interestOps(SelectionKey.OP_WRITE);
+				String goodByeMsg = "Player " + winner.id
+						+ " has won the game. The game has ended.";
+				goodByeMsg = gs.prepareResponseMsg(goodByeMsg);
+				writeBuffer = ByteBuffer.wrap(goodByeMsg.getBytes());
+				s.write(writeBuffer);
+				System.out.println(goodByeMsg);
+				key.cancel();
+				s.close();
+			}
 		}
 		selector.close();
 
@@ -891,7 +905,7 @@ public class Peer extends Thread {
 		String msg = " You've joined the game. \nYou are Player "
 				+ players.get(scktChannel).id + ","
 				+ "\nPlease wait for start signal.";
-		msg = "PORT" + Integer.toString(PeerConstants.port + 1) + " "
+		msg = "PORT" + Integer.toString(PeerConstants.port +gs.crashedPlayersandBackupserver.size() +1) + " "
 				+ gs.prepareResponseMsg(msg);
 		writeBuffer = ByteBuffer.wrap(msg.getBytes());
 		scktChannel.register(selector, SelectionKey.OP_WRITE);

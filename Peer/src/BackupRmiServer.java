@@ -13,10 +13,11 @@ public class BackupRmiServer extends Thread implements DataSync {
 	File file;
 	 FileWriter fstream;
 	 BufferedWriter out;
+	 Registry registry = null;
+		DataSync stub = null;
 	public BackupRmiServer(String threadid) {
 		gs = GameSingleton.getInstance();
 		file=new File(gs.filename);
-		System.out.println(file.getPath());
 		if(file.isFile())
 		 file.delete();
 		 try {
@@ -35,12 +36,9 @@ public class BackupRmiServer extends Thread implements DataSync {
 		gs.grid = (GameEntity[][]) dataObj.getGrid();
 		gs.numTreasures = (int) dataObj.getNumTreasures();
 		gs.playercounter = (int) dataObj.getPlayercounter();
-		System.out.println(gs.numTreasures);
 		gs.playerlist = (List<Player>) dataObj.getPlayers();
 		gs.crashedPlayersandBackupserver=(List<String>) dataObj.getCrashedPlayersandBackupserver();
 		gs.primPlayerIdfromRMI=(String) dataObj.getPrimaryPlayerId();
-		System.out
-				.println("----" + gs.prepareResponseMsg(gs.getTime()) + "---");
 		 try {
 			fstream = new FileWriter(file,true);
 			 out = new BufferedWriter(fstream);
@@ -57,8 +55,8 @@ public class BackupRmiServer extends Thread implements DataSync {
 	}
 
 	public void run() {
-		DataSync stub = null;
-		Registry registry = null;
+	
+		
 		boolean flag = true;
 		while (flag) {
 			flag = false;
@@ -82,6 +80,19 @@ public class BackupRmiServer extends Thread implements DataSync {
 					ee.printStackTrace();
 				}
 			}
+		}
+	}
+	
+	public void stopServer()
+	{
+		
+		try {
+			registry.unbind("DataSync");
+			registry.bind("DataSync", stub);
+			System.err.println("Server ready");
+		} catch (Exception ee) {
+			System.err.println("Server exception: " + ee.toString());
+			ee.printStackTrace();
 		}
 	}
 }
