@@ -84,6 +84,4 @@ public class BackupRmiServer extends Thread implements DataSync {
 			}
 		}
 	}
-	
-
 }

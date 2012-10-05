@@ -744,7 +744,7 @@ public class Peer extends Thread {
 				temp=dataFromServer.substring(4);
 			}
 			System.out.println("temp:" + temp);
-			gs.backpServerPort = Integer.parseInt(temp);
+			gs.backpServerPort = Integer.parseInt(temp.trim());
 			System.out.println(gs.backpServerPort);
 			dataFromServer = dataFromServer.substring(dataFromServer
 					.indexOf(" ") + 1);
