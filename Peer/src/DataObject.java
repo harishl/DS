@@ -32,8 +32,14 @@ public int getGridSize() {
 public void setGridSize(int gridSize) {
 	this.gridSize = gridSize;
 }
+int playercounter;
 
-
+public int getPlayercounter() {
+	return playercounter;
+}
+public void setPlayercounter(int playercounter) {
+	this.playercounter = playercounter;
+}
 int gridSize;
 public  List<Player>players;
 public List<Player> getPlayers() {
@@ -41,5 +47,12 @@ public List<Player> getPlayers() {
 }
 public void setPlayers(List<Player> players) {
 	this.players = players;
+}
+String primaryPlayerId;
+public String getPrimaryPlayerId() {
+	return primaryPlayerId;
+}
+public void setPrimaryPlayerId(String primaryPlayerId) {
+	this.primaryPlayerId = primaryPlayerId;
 }
 }

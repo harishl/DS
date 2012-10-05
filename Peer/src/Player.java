@@ -22,14 +22,17 @@ public class Player extends GameEntity implements Runnable {
 	public int numCollectedTreasures;
 	public String msgToPlayerClient;	
 	IOOperations io;
-	//SocketChannel sctChannel;
-	
+
 	public Player(String playerId, GridLocation l,SocketChannel sct) {
 		super(playerId, l);
 		gs=GameSingleton.getInstance();
 		numCollectedTreasures = 0;
-		//sctChannel=sct;
-	//io=new IOOperations(sct.socket());
+		requestQueue = Collections.synchronizedList(new LinkedList<Character>());
+	}
+	public Player(String playerId, GridLocation l,SocketChannel sct,int nooftressures) {
+		super(playerId, l);
+		gs=GameSingleton.getInstance();
+		numCollectedTreasures = nooftressures;
 		requestQueue = Collections.synchronizedList(new LinkedList<Character>());
 	}
 	

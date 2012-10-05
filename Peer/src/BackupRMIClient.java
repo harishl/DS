@@ -18,6 +18,8 @@ obj.setGridSize(gs.gridSize);
 obj.setNumTreasures(gs.numTreasures);
 obj.setPlayers(gs.playerlist);
 obj.setCrashedPlayersandBackupserver(gs.crashedPlayersandBackupserver);
+obj.setPlayercounter(gs.playercounter);
+obj.setPrimaryPlayerId(gs.primaryPlayerId);
 	    Registry registry = LocateRegistry.getRegistry(host);
 	    DataSync stub = (DataSync) registry.lookup("DataSync");
 	    boolean response = stub.backupData(obj);
