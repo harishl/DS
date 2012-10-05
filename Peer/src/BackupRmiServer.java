@@ -13,6 +13,8 @@ public class BackupRmiServer extends Thread implements DataSync {
 	File file;
 	 FileWriter fstream;
 	 BufferedWriter out;
+	 Registry registry = null;
+		DataSync stub = null;
 	public BackupRmiServer(String threadid) {
 		gs = GameSingleton.getInstance();
 		file=new File(gs.filename);
@@ -57,8 +59,8 @@ public class BackupRmiServer extends Thread implements DataSync {
 	}
 
 	public void run() {
-		DataSync stub = null;
-		Registry registry = null;
+	
+		
 		boolean flag = true;
 		while (flag) {
 			flag = false;
@@ -82,6 +84,19 @@ public class BackupRmiServer extends Thread implements DataSync {
 					ee.printStackTrace();
 				}
 			}
+		}
+	}
+	
+	public void stopServer()
+	{
+		
+		try {
+			registry.unbind("DataSync");
+			registry.bind("DataSync", stub);
+			System.err.println("Server ready");
+		} catch (Exception ee) {
+			System.err.println("Server exception: " + ee.toString());
+			ee.printStackTrace();
 		}
 	}
 	
