@@ -15,10 +15,13 @@ public class GameSingleton implements Serializable {
 	int gridSize;
 	int playercounter;
 	String filename;
+	int backpServerPort;
+	boolean backUpServerFlagUpdated;
 	private static final long serialVersionUID = -403250971215465053L;
 	public List<Player> playerlist;
 	public List<Player> writeReadyPlayers;
 	public List<String> crashedPlayersandBackupserver;
+	public String primPlayerIdfromRMI;
 
 	public int getNumTreasures() {
 		return numTreasures;
