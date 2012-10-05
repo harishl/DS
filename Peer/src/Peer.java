@@ -290,11 +290,13 @@ public class Peer extends Thread {
 		}
 	}
 
+	/**
+	 * Connects a player peer to the primary server
+	 */
 	public void connectToServer() {
 		try {
 			socketChannel = SocketChannel.open();
-			socketChannel.configureBlocking(false); // non-blocking socket
-													// channel
+			socketChannel.configureBlocking(false); // non-blocking socket channel
 			socketChannel.connect(getServerAddress());
 			SelectionKey key = socketChannel.register(playerSelector,
 					SelectionKey.OP_CONNECT | SelectionKey.OP_READ);
@@ -325,7 +327,7 @@ public class Peer extends Thread {
 					writeBuffer = ByteBuffer.wrap(userInputs.remove(0)
 							.toString().getBytes());
 					SelectionKey key = socketChannel.keyFor(playerSelector);
-					key.interestOps(SelectionKey.OP_WRITE);
+					key.interestOps(SelectionKey.OP_WRITE); //set OP_WRITE only when there is data to write
 				}
 				if (playerSelector.selectNow() == 0)
 					continue;
@@ -336,7 +338,7 @@ public class Peer extends Thread {
 				while (selKeyIterator.hasNext()) {
 
 					SelectionKey key = (SelectionKey) selKeyIterator.next();
-					if (((SocketChannel) key.channel()).socket().getPort() == PrimaryServerConstants.port) {
+					//if (((SocketChannel) key.channel()).socket().getPort() == PrimaryServerConstants.port) {
 						selKeyIterator.remove();
 						if (!key.isValid())
 							continue;
@@ -346,11 +348,11 @@ public class Peer extends Thread {
 						} else if (key.isWritable()) {
 							writeDataToServer(key);
 						}
-					}
+					//}
 				}
 			}
 
-			finishPlaying();
+			finishPlaying(); // when gameOn flag becomes false
 		} catch (NullPointerException e) {
 			System.out
 					.println("NullPointerException occurred in GameServer run()\n");
