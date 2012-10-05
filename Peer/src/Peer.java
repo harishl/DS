@@ -533,8 +533,8 @@ public class Peer extends Thread {
 						System.out.println(dataFromPlayer);
 						for (Player s : gs.playerlist) {
 							System.out.println(s.id);
-							System.out.println(dataFromPlayer.equals(s.id));
-							if (dataFromPlayer.equals(s.id)) {
+							System.out.println(dataFromPlayer.contains(s.id));
+							if (dataFromPlayer.contains(s.id)) {
 								Player p = new Player(dataFromPlayer, s.position,
 										aPlayerScktChnl, s.numCollectedTreasures);
 								players.put(aPlayerScktChnl, p);//player have to add server address
