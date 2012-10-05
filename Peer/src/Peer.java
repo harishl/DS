@@ -87,7 +87,7 @@ public class Peer extends Thread {
 		// players=new HashMap<SocketChannel, Player>();
 		this.timerStarted = false;
 		this.gameStarted = false;
-		this.timeBeforeStart = PeerConstants.timedelay;
+		this.timeBeforeStart = PrimaryServerConstants.timedelay;
 		timer = new Timer();
 
 	}
@@ -106,12 +106,10 @@ public class Peer extends Thread {
 			try {
 				Peer hostPlayer = new Peer(true);
 				hostPlayer.start();
-				selector = Selector.open(); // or
-											// SelectorProvider.provider.open()
-											// ??
+				selector = Selector.open(); 
 				svrScktChnl = ServerSocketChannel.open();
 				svrScktChnl.socket().bind(
-						new InetSocketAddress(PeerConstants.port));
+						new InetSocketAddress(PrimaryServerConstants.port));
 				svrScktChnl.configureBlocking(false); // makes server to accept
 														// without blocking
 				SelectionKey key = svrScktChnl.register(selector,
@@ -205,7 +203,7 @@ public class Peer extends Thread {
 						}
 					}
 
-					if (!timerStarted && gs.playercounter == 2) {
+					if (!timerStarted && gs.playercounter == 1) {
 						// Executes only once
 						// First player has joined
 						timer.schedule(new LoopBreakerTask(), timeBeforeStart);
@@ -338,7 +336,7 @@ public class Peer extends Thread {
 				while (selKeyIterator.hasNext()) {
 
 					SelectionKey key = (SelectionKey) selKeyIterator.next();
-					if (((SocketChannel) key.channel()).socket().getPort() == PeerConstants.port) {
+					if (((SocketChannel) key.channel()).socket().getPort() == PrimaryServerConstants.port) {
 						selKeyIterator.remove();
 						if (!key.isValid())
 							continue;
@@ -373,7 +371,7 @@ public class Peer extends Thread {
 
 	private InetSocketAddress getServerAddress() {
 		InetSocketAddress iaddress = new InetSocketAddress(
-				PeerConstants.serverAddress, PeerConstants.port);
+				PrimaryServerConstants.serverAddress, PrimaryServerConstants.port);
 		return iaddress;
 	}
 
