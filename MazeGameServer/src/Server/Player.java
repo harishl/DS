@@ -1,5 +1,6 @@
 package Server;
 
+import java.net.InetAddress;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -20,6 +21,8 @@ public class Player extends GameEntity implements Runnable {
 	public boolean interestToWrite;
 	public int numCollectedTreasures;
 	public String msgToPlayerClient;
+	public int port;
+	public InetAddress clientAddr;
 	
 	public Player(String playerId, GridLocation l, GameServer s) {
 		super(playerId, l);
@@ -94,5 +97,10 @@ public class Player extends GameEntity implements Runnable {
 			}
 		}
 		return moved;
+	}
+	
+	public void setClientAddress(InetAddress address, int port) {
+		this.clientAddr = address;
+		this.port = port;
 	}
 }

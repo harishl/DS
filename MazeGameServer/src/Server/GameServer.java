@@ -178,7 +178,6 @@ public class GameServer implements Runnable{
 	private void kickPlayerOut() throws IOException {
 		SocketChannel aPlayerScktChnl = svrScktChnl.accept();
 		aPlayerScktChnl.configureBlocking(false);
-		putPlayerOnGame(aPlayerScktChnl);
 		writeRejectMsgToPlayer(aPlayerScktChnl);
 	}
 
@@ -285,6 +284,7 @@ public class GameServer implements Runnable{
 			l.pickAnotherLocation();
 		}
 		Player p = new Player("P" + playerCounter, l, this);
+		p.setClientAddress(aPlayer.socket().getInetAddress(), aPlayer.socket().getPort());
 		grid[l.x][l.y] = p;
 		players.put(aPlayer, p);
 	}
