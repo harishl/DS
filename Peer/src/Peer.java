@@ -86,12 +86,10 @@ public class Peer extends Thread {
 		gs.setGridSize(gridSize);
 		gs.setNumTreasures(noOfTressures);
 		gs.populateTreasures();
-		// players=new HashMap<SocketChannel, Player>();
 		this.timerStarted = false;
 		this.gameStarted = false;
 		this.timeBeforeStart = PrimaryServerConstants.timedelay;
 		timer = new Timer();
-
 	}
 
 	Peer(String id) {
@@ -103,38 +101,25 @@ public class Peer extends Thread {
 	}
 
 	public void run() {
-		if (isbackupPlayer) {
-			/*boolean flag=true;
-			while(flag){*/
+		if (isbackupPlayer) { // Backup server becomes the primary server
 			try {
 				selector = Selector.open();
 				svrScktChnl = ServerSocketChannel.open();
-				svrScktChnl.socket().bind(
-						new InetSocketAddress(gs.backpServerPort));
+				svrScktChnl.socket().bind(new InetSocketAddress(gs.backpServerPort));
 				svrScktChnl.configureBlocking(false);
-				SelectionKey key = svrScktChnl.register(selector,
-						SelectionKey.OP_ACCEPT);
-				System.out.println("SelectionKey: " + key.channel().toString());
-
+				svrScktChnl.register(selector,SelectionKey.OP_ACCEPT);
 				players = new HashMap<SocketChannel, Player>();
-				gs.writeReadyPlayers = Collections
-						.synchronizedList(new ArrayList<Player>());
+				gs.writeReadyPlayers = Collections.synchronizedList(new ArrayList<Player>());
 				readBuffer = ByteBuffer.allocate(8192);
 				writeBuffer = ByteBuffer.allocate(8192);
 				file = new File(gs.primaryPlayerId + "primary.txt");
-				System.out.println(file.getPath());
-				if (file.isFile())
-					file.delete();
-				file.createNewFile();
-			//	flag=false;
-
+				if (file.isFile()) file.delete(); // delete the file if it already exists
+				file.createNewFile(); // and create a new file
 			} catch (NullPointerException e) {
-				System.out
-						.println("NullPointerException occurred in Peer run()");
+				System.out.println("NullPointerException occurred in Peer run()");
 				e.printStackTrace();
 			} catch (ClosedChannelException e) {
-				System.out
-						.println("ClosedChannelException occurred in Peer run()");
+				System.out.println("ClosedChannelException occurred in Peer run()");
 				e.printStackTrace();
 			} catch (BindException e) {
 				//flag=true;
@@ -143,7 +128,7 @@ public class Peer extends Thread {
 			} catch (IOException e) {
 				System.out.println("IOException occurred in Peer run()");
 				e.printStackTrace();
-			}//}
+			}
 			while (gs.numTreasures >= 0) {
 				try {
 					synchronized (gs.writeReadyPlayers) {
@@ -240,10 +225,8 @@ public class Peer extends Thread {
 									SocketChannel sChannel = (SocketChannel) backupkey
 											.channel();
 									String Msg = "PORT"
-											+ Integer
-													.toString(PeerConstants.port
-															+ gs.crashedPlayersandBackupserver
-																	.size() + 1)+" ";
+											+ Integer.toString(PeerConstants.port
+											+ gs.crashedPlayersandBackupserver.size() + 1)+ " ";
 									writeBuffer = ByteBuffer.wrap(Msg
 											.getBytes());
 									sChannel.write(writeBuffer);
@@ -256,9 +239,8 @@ public class Peer extends Thread {
 							} catch (NotBoundException e1) {
 								e1.printStackTrace();
 							} catch (java.rmi.ConnectException e2) {
-								e2.printStackTrace();
+								//e2.printStackTrace();
 							} catch (RemoteException e3) {
-								// TODO Auto-generated catch block
 								e.printStackTrace();
 							} catch (IOException e4) {
 								// TODO Auto-generated catch block
@@ -272,7 +254,7 @@ public class Peer extends Thread {
 				} catch (NotBoundException e) {
 					e.printStackTrace();
 				} catch (ConnectException e2) {
-					e2.printStackTrace();
+					//e2.printStackTrace();
 				} catch (RemoteException e3) {
 					// TODO Auto-generated catch block
 					e3.printStackTrace();
@@ -346,16 +328,11 @@ public class Peer extends Thread {
 					if (null != gs.primaryPlayerId && flag) {
 						flag = false;
 						file = new File(gs.primaryPlayerId + "primary.txt");
-						System.out.println(file.getPath());
-						if (file.isFile())
-							file.delete();
-
+						if (file.isFile()) file.delete();
 						file.createNewFile();
-
 					}
 					synchronized (gs.writeReadyPlayers) {
-						Iterator<Player> playerIt = gs.writeReadyPlayers
-								.iterator();
+						Iterator<Player> playerIt = gs.writeReadyPlayers.iterator();
 						while (playerIt.hasNext()) {
 							Player aWriteReadyPlayer = (Player) playerIt.next();
 							SocketChannel scktChnl = getscktChannel(aWriteReadyPlayer);
@@ -364,141 +341,120 @@ public class Peer extends Thread {
 						}
 						gs.writeReadyPlayers.clear();
 					}
-
+					
+					// multiplexing
 					if (selector.selectNow() == 0)
 						continue;
 
-					Iterator<SelectionKey> selKeyIterator = selector
-							.selectedKeys().iterator();
+					Iterator<SelectionKey> selKeyIterator = selector.selectedKeys().iterator();
 
 					while (selKeyIterator.hasNext()) {
-						SelectionKey selKey = (SelectionKey) selKeyIterator
-								.next();
+						SelectionKey selKey = (SelectionKey) selKeyIterator.next();
 						selKeyIterator.remove();
 						if (!selKey.isValid())
 							continue;
 
-						// has a player attempted to join?
-						if (selKey.isAcceptable()) {
+						
+						if (selKey.isAcceptable()) { // has some player attempted to join?
 							if (!gameStarted) {
 								acceptPlayer();
-							} else {
+							}
+							else {
 								kickPlayerOut();
 							}
-						} else if (selKey.isReadable()) {
+						} else if (selKey.isReadable()) { // does some player have data to read
 							readDataFromPlayer(selKey);
-						} else if (selKey.isWritable()) {
+						} else if (selKey.isWritable()) { // does some player have data to write
 							writeDataToPlayer(selKey);
-
+							
+							// Send state update to backup server
 							new BackupRMIClient().saveBackupData();
 							fstream = new FileWriter(file, true);
 							out = new BufferedWriter(fstream);
-							out.append(gs.getTime()
-									+ gs.prepareResponseMsg("-----------------"));
+							out.append(gs.getTime() + gs.prepareResponseMsg("-----------------"));
 							out.close();
-
 						}
 					}
 
-					if (!timerStarted && gs.playercounter == 1) {
+					if (!timerStarted && gs.playercounter == 1) { // when the first player joins
 						// Executes only once
 						// First player has joined
 						timer.schedule(new LoopBreakerTask(), timeBeforeStart);
 						timerStarted = true;
 					}
-					if (gs.numTreasures == 0)
-						break;
+					
+					if (gs.numTreasures == 0) break; // break out if all treasures have been collected
 				} catch (java.rmi.ConnectException e) {
+					// Backup server has crashed
 					gs.crashedPlayersandBackupserver.add(gs.backupPlayerId);
 					Iterator<Player> playerIterator = gs.playerlist.iterator();
 					while (playerIterator.hasNext()) {
 						Player p = playerIterator.next();
-						if (!(p.id.equals(gs.primaryPlayerId) || gs.crashedPlayersandBackupserver
-								.contains(p.id))) {
+						if (!(p.id.equals(gs.primaryPlayerId) 
+								|| gs.crashedPlayersandBackupserver.contains(p.id))) {
 							gs.backupPlayerId = p.id;
 							SocketChannel scktChnl = getscktChannel(p);
 							SelectionKey backupkey = scktChnl.keyFor(selector);
 							backupkey.interestOps(SelectionKey.OP_WRITE);
 							writeBuffer.clear();
-							SocketChannel scktChannel = (SocketChannel) backupkey
-									.channel();
+							SocketChannel scktChannel = (SocketChannel) backupkey.channel();
 							String responseMsg = "backup";
-							writeBuffer = ByteBuffer.wrap(responseMsg
-									.getBytes());
+							writeBuffer = ByteBuffer.wrap(responseMsg.getBytes());
 
 							try {
 								scktChannel.write(writeBuffer);
 								backupkey.interestOps(SelectionKey.OP_READ);
-								Thread.sleep(500);
+								Thread.sleep(500); // wait for the backup RMI server to start
 								new BackupRMIClient().saveBackupData();
 								fstream = new FileWriter(file, true);
 								out = new BufferedWriter(fstream);
-								out.append(gs.getTime()
-										+ "Back up server changed to"
-										+ p.id
-										+ " "
+								out.append(gs.getTime() + "Back up server changed to" + p.id + " "
 										+ gs.prepareResponseMsg("-----------------"));
 								out.close();
 								for (SocketChannel s : players.keySet()) {
-									if (gs.crashedPlayersandBackupserver
-											.contains(players.get(s).id))
+									if (gs.crashedPlayersandBackupserver.contains(players.get(s).id))
 										continue;
 
 									backupkey = s.keyFor(selector);
-									backupkey
-											.interestOps(SelectionKey.OP_WRITE);
+									backupkey.interestOps(SelectionKey.OP_WRITE);
 									writeBuffer.clear();
-									SocketChannel sChannel = (SocketChannel) backupkey
-											.channel();
+									SocketChannel sChannel = (SocketChannel) backupkey.channel();
 									String Msg = "PORT"
-											+ Integer
-													.toString(PeerConstants.port
-															+ gs.crashedPlayersandBackupserver
-																	.size() + 1);
-									writeBuffer = ByteBuffer.wrap(Msg
-											.getBytes());
+											+ Integer.toString(PeerConstants.port
+											+ gs.crashedPlayersandBackupserver.size() + 1);
+									writeBuffer = ByteBuffer.wrap(Msg.getBytes());
 									sChannel.write(writeBuffer);
 									backupkey.interestOps(SelectionKey.OP_READ);
-
 								}
 							} catch (InterruptedException e1) {
-								// TODO Auto-generated catch block
 								e1.printStackTrace();
 							} catch (NotBoundException e1) {
 								e1.printStackTrace();
 							} catch (java.rmi.ConnectException e2) {
-								e2.printStackTrace();
+								//e2.printStackTrace();
 							} catch (RemoteException e3) {
-								// TODO Auto-generated catch block
-								e.printStackTrace();
+								e3.printStackTrace();
 							} catch (IOException e4) {
-								// TODO Auto-generated catch block
-								e.printStackTrace();
+								e4.printStackTrace();
 							}
-
 							break;
 						}
 					}
-
 				} catch (NotBoundException e) {
 					e.printStackTrace();
 				} catch (ConnectException e2) {
-					e2.printStackTrace();
+					//e2.printStackTrace();
 				} catch (RemoteException e3) {
-					// TODO Auto-generated catch block
 					e3.printStackTrace();
 				} catch (IOException e4) {
-					// TODO Auto-generated catch block
 					e4.printStackTrace();
 				}
 			}
 			try {
 				finishServerGame();
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-
 		}
 	}
 
@@ -509,7 +465,6 @@ public class Peer extends Thread {
 		writeBuffer = ByteBuffer.wrap("GETPLAYERID".getBytes());
 		aPlayerScktChnl.register(selector, SelectionKey.OP_WRITE|SelectionKey.OP_READ);
 		SelectionKey key = aPlayerScktChnl.keyFor(selector);
-		//key.interestOps(SelectionKey.OP_WRITE);
 		aPlayerScktChnl.write(writeBuffer);
 		
 		boolean playerAdditionFlag = true;
@@ -631,12 +586,9 @@ public class Peer extends Thread {
 					}
 					socketChannel.close();
 					socketChannel = SocketChannel.open();
-					socketChannel.configureBlocking(false); // non-blocking
-															// socket
-															// channel
+					socketChannel.configureBlocking(false); // non-blocking socket channel
 					socketChannel.connect(new InetSocketAddress(PeerConstants.serverAddress,gs.backpServerPort));
-					socketChannel.register(playerSelector,
-							SelectionKey.OP_CONNECT | SelectionKey.OP_READ);
+					socketChannel.register(playerSelector, SelectionKey.OP_CONNECT | SelectionKey.OP_READ);
 					socketChannel.finishConnect();
 					SelectionKey key = socketChannel.keyFor(playerSelector);
 					if (key.isReadable()) {
@@ -648,21 +600,20 @@ public class Peer extends Thread {
 				if (playerSelector.selectNow() == 0)
 					continue;
 
-				Iterator<SelectionKey> selKeyIterator = playerSelector
-						.selectedKeys().iterator();
+				Iterator<SelectionKey> selKeyIterator = playerSelector.selectedKeys().iterator();
 
 				while (selKeyIterator.hasNext()) {
 
 					SelectionKey key = (SelectionKey) selKeyIterator.next();
-						selKeyIterator.remove();
-						if (!key.isValid())
-							continue;
+					selKeyIterator.remove();
+					if (!key.isValid())
+						continue;
 
-						if (key.isReadable()) {
-							readDataFromServer(key);
-						} else if (key.isWritable()) {
-							writeDataToServer(key);
-						}
+					if (key.isReadable()) {
+						readDataFromServer(key);
+					} else if (key.isWritable()) {
+						writeDataToServer(key);
+					}
 				}
 			}
 
@@ -698,7 +649,6 @@ public class Peer extends Thread {
 		System.out.println("Players joined: " + gs.playercounter);
 		gs.putPlayerOnGame(aPlayerScktChnl, this);
 		writeWelcomeMsgToPlayer(aPlayerScktChnl);
-
 	}
 
 	private void finishPlaying() throws IOException {
@@ -733,7 +683,7 @@ public class Peer extends Thread {
 			writeBuffer.clear();
 			writeBuffer = ByteBuffer.wrap(this.playerId.getBytes());
 			key = socketChannel.keyFor(playerSelector);
-			System.out.println(socketChannel.socket().getPort());
+			//System.out.println(socketChannel.socket().getPort());
 			key.interestOps(SelectionKey.OP_WRITE);
 			try{
 			writeDataToServer(key);
@@ -753,10 +703,10 @@ public class Peer extends Thread {
 				temp=dataFromServer.substring(4);
 
 			}
-			System.out.println("temp:" + temp);
+			//System.out.println("temp:" + temp);
 			gs.backpServerPort = Integer.parseInt(temp.trim()) + 1;
 
-			System.out.println(gs.backpServerPort);
+			//System.out.println(gs.backpServerPort);
 			dataFromServer = dataFromServer.substring(dataFromServer
 					.indexOf(" ") + 1);
 
@@ -787,16 +737,14 @@ public class Peer extends Thread {
 			server = new BackupRmiServer(this.playerId + "rmi");
 			server.start();
 			Peer p = new Peer(this.playerId);
-		p.start();
+			p.start();
 			
-System.out.println("End of Backup"+gs.backpServerPort);
 		}
 		System.out.println(dataFromServer);
 		if (dataFromServer.contains("START MOVING")) {
 			userInputs.clear();
 			canMove = true;
-			System.out
-					.println("Up = w | Down = s | Left = a | Right = d | NoMove = x");
+			System.out.println("Up = w | Down = s | Left = a | Right = d | NoMove = x");
 		}
 		if (dataFromServer.contains("ENDED")) {
 			gameOn = false;
@@ -854,7 +802,7 @@ System.out.println("End of Backup"+gs.backpServerPort);
 				goodByeMsg = gs.prepareResponseMsg(goodByeMsg);
 				writeBuffer = ByteBuffer.wrap(goodByeMsg.getBytes());
 				s.write(writeBuffer);
-				System.out.println(goodByeMsg);
+				//System.out.println(goodByeMsg);
 				key.cancel();
 				s.close();
 			}
@@ -909,7 +857,7 @@ System.out.println("End of Backup"+gs.backpServerPort);
 		String msg = " You've joined the game. \nYou are Player "
 				+ players.get(scktChannel).id + ","
 				+ "\nPlease wait for start signal.";
-		msg = "PORT" + Integer.toString(PeerConstants.port +gs.crashedPlayersandBackupserver.size() +1) + " "
+		msg = "PORT" + Integer.toString(PeerConstants.port + gs.crashedPlayersandBackupserver.size() +1) + " "
 				+ gs.prepareResponseMsg(msg);
 		writeBuffer = ByteBuffer.wrap(msg.getBytes());
 		scktChannel.register(selector, SelectionKey.OP_WRITE);
